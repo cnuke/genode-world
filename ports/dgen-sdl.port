@@ -1,0 +1,16 @@
+#
+# The COPYING file states multiple licenses but the GPLv2 seems to
+# be the most grave one
+#
+LICENSE   := GPLv2
+VERSION   := 1.33
+DOWNLOADS := dgen-sdl.archive
+
+BASE_URL  := http://downloads.sourceforge.net/project/dgen/dgen/$(VERSION)
+
+URL(dgen-sdl) := $(BASE_URL)/dgen-sdl-$(VERSION).tar.gz
+SHA(dgen-sdl) := 08629d9396a582ecc1ca50dba2f211e9405c5adc
+DIR(dgen-sdl) := src/app/dgen-sdl
+
+PATCHES   := src/app/dgen-sdl/fix_without_joystick.patch
+PATCH_OPT := -p1 -d src/app/dgen-sdl
