@@ -1,0 +1,4 @@
+Discount generates blocktags, config.h, mkdio.h and version.c normally while
+compiling. Since it seems easier to provide a copy adapted for the use in Noux
+the former two files are shipped with this port. However, mkdio.h and version.c
+are generated while preparing this port.

@@ -1,0 +1,25 @@
+LICENSE   := BSD
+VERSION   := 2.1.8a
+DOWNLOADS := discount.archive
+
+BASE_URL  := http://www.pell.portland.or.us/~orc/Code/markdown/
+URL(discount) := $(BASE_URL)/discount-$(VERSION).tar.bz2
+SHA(discount) := 5415057067238f445f767f0c23b33e0b5420f9ff
+DIR(discount) := src/noux-pkg/discount
+
+$(call check_tool,sed)
+
+# generate mkdio.h
+MKDIO_H := ${DIR(discount)}/mkdio.h
+default: $(MKDIO_H)
+$(MKDIO_H) : _dirs
+	@$(MSG_GENERATE)$@
+	$(VERBOSE)sed 's/@DWORD@/unsigned int/' $(MKDIO_H).in > $@
+
+# generate version.c
+VERSION_C := ${DIR(discount)}/version.c
+default: $(VERSION_C)
+$(VERSION_C) : _dirs
+	@$(MSG_GENERATE)$@
+	$(VERBOSE)sed -e 's/@TABSTOP@/4/' -e 's/VERSION/"'$(VERSION)'"/' \
+	          $(VERSION_C).in > $@
