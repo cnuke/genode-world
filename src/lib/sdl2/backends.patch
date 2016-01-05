@@ -1,0 +1,67 @@
+diff --git a/src/audio/SDL_audio.c b/src/audio/SDL_audio.c
+index 2ffd216..3c79143 100644
+--- a/src/audio/SDL_audio.c
++++ b/src/audio/SDL_audio.c
+@@ -70,6 +70,7 @@ extern AudioBootStrap ANDROIDAUD_bootstrap;
+ extern AudioBootStrap PSPAUD_bootstrap;
+ extern AudioBootStrap SNDIO_bootstrap;
+ extern AudioBootStrap EmscriptenAudio_bootstrap;
++extern AudioBootStrap GenodeAudio_bootstrap;
+ 
+ 
+ /* Available audio drivers */
+@@ -143,6 +144,9 @@ static const AudioBootStrap *const bootstrap[] = {
+ #if SDL_AUDIO_DRIVER_EMSCRIPTEN
+     &EmscriptenAudio_bootstrap,
+ #endif
++#if SDL_AUDIO_DRIVER_GENODE
++    &GenodeAudio_bootstrap,
++#endif
+     NULL
+ };
+ 
+diff --git a/src/dynapi/SDL_dynapi.c b/src/dynapi/SDL_dynapi.c
+index 1411f8c..0a28701 100644
+--- a/src/dynapi/SDL_dynapi.c
++++ b/src/dynapi/SDL_dynapi.c
+@@ -244,6 +244,12 @@ static SDL_INLINE void *get_sdlapi_entry(const char *fname, const char *sym)
+     }
+     return retval;
+ }
++#elif defined(GENODE)
++static SDL_INLINE void *get_sdlapi_entry(const char *fname, const char *sym)
++{
++    /* whatever that actually is we do not support it for now */
++    return NULL;
++}
+ #else
+ #error Please define your platform.
+ #endif
+diff --git a/src/video/SDL_sysvideo.h b/src/video/SDL_sysvideo.h
+index 77426c3..64cfb01 100644
+--- a/src/video/SDL_sysvideo.h
++++ b/src/video/SDL_sysvideo.h
+@@ -404,6 +404,9 @@ extern VideoBootStrap VIVANTE_bootstrap;
+ #if SDL_VIDEO_DRIVER_EMSCRIPTEN
+ extern VideoBootStrap Emscripten_bootstrap;
+ #endif
++#if SDL_VIDEO_DRIVER_GENODE
++extern VideoBootStrap GenodeVideo_bootstrap;
++#endif
+ 
+ extern SDL_VideoDevice *SDL_GetVideoDevice(void);
+ extern int SDL_AddBasicVideoDisplay(const SDL_DisplayMode * desktop_mode);
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 511b4c0..abc9d75 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -108,6 +108,9 @@ static VideoBootStrap *bootstrap[] = {
+ #if SDL_VIDEO_DRIVER_DUMMY
+     &DUMMY_bootstrap,
+ #endif
++#if SDL_VIDEO_DRIVER_GENODE
++    &GenodeVideo_bootstrap,
++#endif
+     NULL
+ };
+ 
