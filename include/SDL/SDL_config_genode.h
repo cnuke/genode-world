@@ -63,6 +63,9 @@
 
 #define SDL_HAS_64BIT_TYPE 1
 
+/* Disable in-built glext.h */
+#define NO_SDL_GLEXT
+
 /* #define HAVE_MREMAP 0 */
 #define HAVE_MALLOC
 #define HAVE_CALLOC
