@@ -40,7 +40,8 @@ struct Morse::Main
 	Input::Session_client &input = *nitpicker.input();
 
 	Genode::Reconstructible<Loader::Connection> loader {
-		env, env.ram().avail() - 4096 };
+		env, Genode::Ram_quota{env.pd().avail_ram().value  - 4096},
+		     Genode::Cap_quota{env.pd().avail_caps().value - 16} };
 
 
 	/********************************
@@ -130,7 +131,8 @@ struct Morse::Main
 		Xml_node start_node = config_rom.xml().sub_node("start");
 
 		/* We are only patron of single load, so transfer the slack RAM */
-		loader.construct(env, env.ram().avail() - 4096);
+		loader.construct(env, Ram_quota{env.pd().avail_ram().value  - 4096},
+		                      Cap_quota{env.pd().avail_caps().value - 16});
 
 		try {
 			Xml_node config_xml = start_node.sub_node("config");
