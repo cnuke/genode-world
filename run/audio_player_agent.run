@@ -1,0 +1,356 @@
+#
+# Build
+#
+
+if {![have_spec linux]} {
+	puts "This run script requires linux!"
+	exit 1
+}
+
+
+set build_components {
+	core init
+	drivers/timer
+	server/ram_fs
+	drivers/framebuffer
+	drivers/audio
+	server/fs_rom
+	server/lx_fs
+	server/report_rom
+	server/nitpicker
+	server/wm
+	app/pointer
+	app/floating_window_layouter
+	app/decorator
+	app/audio_player
+	app/audio_player_agent
+}
+
+source ${genode_dir}/repos/base/run/platform_drv.inc
+append_platform_drv_build_components
+
+build $build_components
+
+create_boot_directory
+
+#
+# Generate config
+#
+
+set config {
+<config>
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="RAM"/>
+		<service name="CAP"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="IRQ"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+		<service name="SIGNAL"/>
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+	<default caps="100"/>
+
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Timer"/> </provides>
+	</start>}
+
+append_platform_drv_config
+
+append_if [have_spec sdl] config {
+	<start name="fb_sdl">
+		<resource name="RAM" quantum="8M"/>
+		<provides>
+			<service name="Input"/>
+			<service name="Framebuffer"/>
+		</provides>
+	</start>}
+
+append config {
+	<start name="wm_report_rom">
+		<binary name="report_rom"/>
+		<resource name="RAM" quantum="2M"/>
+		<provides> <service name="ROM"/> <service name="Report"/> </provides>
+		<config>
+			<policy label="layouter -> window_list"       report="wm -> window_list"/>
+			<policy label="layouter -> focus_request"     report="wm -> focus_request"/>
+			<policy label="decorator -> window_layout"    report="layouter -> window_layout"/>
+			<policy label="wm -> resize_request"          report="layouter -> resize_request"/>
+			<policy label="decorator -> pointer"          report="wm -> pointer"/>
+			<policy label="layouter -> hover"             report="decorator -> hover"/>
+			<policy label="wm -> focus"                   report="layouter -> focus"/>
+			<policy label="layouter -> decorator_margins" report="decorator -> decorator_margins"/>
+			<policy label="pointer -> hover"              report="nitpicker -> hover"/>
+			<policy label="pointer -> xray"               report="nitpicker -> xray"/>
+		</config>
+	</start>
+
+	<start name="nitpicker">
+		<resource name="RAM" quantum="4M"/>
+		<provides><service name="Nitpicker"/></provides>
+		<config>
+			<report focus="yes" xray="yes" />
+
+			<domain name="pointer"   layer="1" content="client" label="no" origin="pointer" />
+			<domain name="default"   layer="2" content="client" label="no" hover="always" focus="click"/>
+
+			<policy label_prefix="pointer" domain="pointer"/>
+			<default-policy         domain="default"/>
+
+			<background color="#000000"/>
+		</config>
+		<route>
+			<service name="Report"> <child name="wm_report_rom"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="pointer">
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Report"/> </provides>
+		<config shapes="yes"/>
+		<route>
+			<service name="Nitpicker"> <child name="nitpicker"/> </service>
+			<service name="ROM" label="hover"> <child name="wm_report_rom"/> </service>
+			<service name="ROM" label="xray"> <child name="wm_report_rom"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="wm" caps="300">
+		<resource name="RAM" quantum="16M"/>
+		<provides><service name="Nitpicker"/></provides>
+		<config>
+			<policy label_prefix="decorator" role="decorator"/>
+			<policy label_prefix="layouter"  role="layouter"/>
+		</config>
+		<route>
+			<service name="ROM" label="focus">          <child name="wm_report_rom"/> </service>
+			<service name="ROM" label="resize_request"> <child name="wm_report_rom"/> </service>
+			<service name="Report">                     <child name="wm_report_rom"/> </service>
+			<any-service>
+				<child name="nitpicker"/> <parent/> <any-child/>
+			</any-service>
+		</route>
+	</start>
+
+	<start name="layouter">
+		<binary name="floating_window_layouter"/>
+		<resource name="RAM" quantum="4M"/>
+		<route>
+			<service name="ROM" label="window_list">       <child name="wm_report_rom"/> </service>
+			<service name="ROM" label="focus_request">     <child name="wm_report_rom"/> </service>
+			<service name="ROM" label="hover">             <child name="wm_report_rom"/> </service>
+			<service name="ROM" label="decorator_margins"> <child name="wm_report_rom"/> </service>
+			<service name="Report">                        <child name="wm_report_rom"/> </service>
+			<any-service>
+				<child name="wm"/> <parent/> <any-child/>
+			</any-service>
+		</route>
+	</start>
+
+	<start name="decorator">
+		<binary name="decorator"/>
+		<resource name="RAM" quantum="12M"/>
+		<route>
+			<service name="ROM" label="window_layout"> <child name="wm_report_rom"/> </service>
+			<service name="ROM" label="pointer">       <child name="wm_report_rom"/> </service>
+			<service name="Report">                    <child name="wm_report_rom"/> </service>
+			<any-service>
+				<child name="wm"/> <parent/> <any-child/>
+			</any-service>
+		</route>
+	</start>}
+
+append config {
+	<start name="lx_fs">
+		<resource name="RAM" quantum="4M"/>
+		<provides><service name="File_system"/></provides>
+		<config>
+			<policy label_prefix="config_rom" root="/media"/>
+			<policy label_prefix="audio_player_agent -> media" root="/media" writeable="yes" />
+			<policy label_prefix="audio_player" root="/media" writeable="no" />
+		</config>
+	</start>
+
+	<start name="ram_fs">
+		<resource name="RAM" quantum="4M"/>
+		<provides><service name="File_system"/></provides>
+		<config>
+			<content>
+				<inline name="audio_player.config">
+<config verbose="no" state="playing" playlist_mode="repeat">
+	<report progress="yes" interval="1" playlist="yes"/>
+	<libc/> <vfs> <fs/> </vfs>
+</config>
+				</inline>
+				<inline name="playlist">
+<playlist>
+	<track path="foo.mp3"/>
+	<track path="foo.ogg"/>
+</playlist>
+				</inline>
+			</content>
+			<policy label_prefix="config_rom" root="/"/>
+			<policy label_prefix="audio_player_agent" root="/" writeable="yes" />
+			<policy label_prefix="audio_player" root="/" writeable="no" />
+		</config>
+	</start>
+
+	<start name="config_rom">
+		<binary name="fs_rom"/>
+		<resource name="RAM" quantum="4M"/>
+		<provides><service name="ROM"/></provides>
+		<route>
+			<service name="File_system"> <child name="ram_fs"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="audio_drv">
+		<binary name="} [audio_drv_binary] {"/>
+		<resource name="RAM" quantum="8M"/>
+		<provides> <service name="Audio_out"/> </provides>
+		<config alsa_device="plughw:CARD=HDMI,DEV=7"/>
+	</start>}
+
+append config {
+
+	<start name="audio_report_rom">
+		<binary name="report_rom"/>
+		<resource name="RAM" quantum="2M"/>
+		<provides> <service name="ROM"/> <service name="Report"/> </provides>
+		<config verbose="no">
+			<policy label="audio_player_agent -> playlist"      report="audio_player -> playlist"/>
+			<policy label="audio_player_agent -> current_track" report="audio_player -> current_track"/>
+		</config>
+	</start>
+
+	<start name="audio_player" caps="200">
+		<resource name="RAM" quantum="32M"/>
+		<configfile name="audio_player.config"/>
+		<route>
+			<service name="ROM" label="audio_player.config"> <child name="config_rom"/> </service>
+			<service name="ROM" label="playlist"> <child name="config_rom"/> </service>
+			<service name="File_system"> <child name="lx_fs"/> </service>
+			<service name="Report"> <child name="audio_report_rom"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="audio_player_agent" caps="250">
+		<resource name="RAM" quantum="32M"/>
+		<config>
+			<libc stdout="/dev/log" stderr="/dev/log"/>
+			<vfs>
+				<dir name="dev"> <log/> </dir>
+				<tar name="qt5_fs_audio_player_agent.tar"/>
+				<fs label="config"/>
+				<fs label="media"/>
+			</vfs>
+		</config>
+		<route>
+			<service name="File_system" label="media"> <child name="lx_fs"/> </service>
+			<service name="File_system" label="config"> <child name="ram_fs"/> </service>
+			<service name="ROM" label="current_track"> <child name="audio_report_rom" /> </service>
+			<service name="ROM" label="playlist"> <child name="audio_report_rom" /> </service>
+			<service name="Report"> <child name="audio_report_rom" /> </service>
+			<service name="Nitpicker"> <child name="wm"/> </service>
+            <service name="Report" label="audio_player_agent -> shape">
+				<child name="pointer" label="wm -> audio_player_agent -> shape"/>
+			</service>
+
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>}
+
+append config {
+</config>}
+
+install_config $config
+
+#
+# Prepare resources needed by the application
+#
+
+#
+# Audio player agent
+#
+
+# get fonts
+set agent_rep_dir "[genode_dir]/repos/world/src/app/audio_player_agent/"
+set agent_bin_dir "bin/qt5_fs/audio_player_agent/"
+exec rm -rf $agent_bin_dir/qt
+exec mkdir -p $agent_bin_dir/qt/lib
+exec ln -sf [pwd]/bin/qt5_fs/qt/lib/fonts $agent_bin_dir/qt/lib/fonts
+
+# get theme
+# set agent_theme "example"
+set agent_theme "vox"
+exec ln -sf $agent_rep_dir/$agent_theme/ $agent_bin_dir/qt/lib/theme
+
+# create tar archive containg Qt5 resources
+exec tar chf bin/qt5_fs_audio_player_agent.tar -C bin/qt5_fs/audio_player_agent .
+
+#
+# Boot modules
+#
+
+append boot_modules {
+	core init timer } [audio_drv_binary] {
+	report_rom lx_fs ram_fs fs_rom
+
+	nitpicker wm pointer
+	floating_window_layouter decorator
+
+	ld.lib.so libc.lib.so
+
+	avcodec.lib.so avformat.lib.so avresample.lib.so avutil.lib.so
+	audio_player
+
+	qt5_component.lib.so
+	qt5_gui.lib.so
+	qt5_widgets.lib.so
+	qt5_xml.lib.so
+	qt5_core.lib.so
+	freetype.lib.so
+	egl.lib.so
+	egl_swrast.lib.so
+	expat.lib.so
+	glapi.lib.so
+	mesa.lib.so
+	icu.lib.so
+	libc_pipe.lib.so
+	libm.lib.so
+	libpng.lib.so
+	jpeg.lib.so
+	zlib.lib.so
+	stdcxx.lib.so
+	pthread.lib.so
+	pcre16.lib.so
+
+	audio_player_agent
+	qt5_fs_audio_player_agent.tar
+}
+
+append_platform_drv_boot_modules
+
+lappend_if [have_spec linux] boot_modules fb_sdl
+
+build_boot_image $boot_modules
+
+# copy media stuff
+set media_dir "[run_dir]/genode/media"
+exec mkdir -p "$media_dir"
+exec cp bin/foo.mp3 bin/foo.ogg "$media_dir"
+
+run_genode_until forever
+
+# vi: set ft=tcl :

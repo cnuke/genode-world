@@ -1,0 +1,35 @@
+Agent { background-color: pink; min-width: 400; min-height: 200; }
+
+Control--Panel { background-color: orange; }
+
+Control--Button               { margin: 3px; border: 1px solid black; border-radius: 0px; }
+Control--Button:hover         { margin: 3px; background-color: red; }
+Control--Button:hover:pressed { margin: 3px; background-color: yellow; }
+
+Control--Open_button         Icon { qproperty-iconFile: url(/qt/lib/images/first-aid.png);   }
+Control--Prev_button         Icon { qproperty-iconFile: url(/qt/lib/images/media-prev.png);  }
+Control--Play_button         Icon { qproperty-iconFile: url(/qt/lib/images/media-play.png);  }
+Control--Play_button#playing Icon { qproperty-iconFile: url(/qt/lib/images/media-pause.png); }
+Control--Play_button#paused  Icon { qproperty-iconFile: url(/qt/lib/images/media-play.png);  }
+Control--Next_button         Icon { qproperty-iconFile: url(/qt/lib/images/media-next.png);  }
+
+View--Info { background-color: green; }
+View--Info Artist_label { margin: 5px; background-color: white; color: black; font: 16px; }
+View--Info Title_label  { margin: 5px; background-color: yellow; color: black; font: 20px; }
+View--Info Time_label   { margin: 5px; color: black; font: 12px; }
+View--Info Progress_bar        { margin: 5px; max-height: 5px; border: 1px solid black; border-radius: 0px; }
+View--Info Progress_bar::chunk { background-color: red; width: 1px; }
+
+View--Playlist { margin: 5px; background-color: brown; font-size: 12px; border: 0px; }
+View--Playlist::item { border-bottom: 2px solid black; }
+
+QHeaderView::section
+{
+spacing: 10px;
+background-color:lightblue;
+color: black;
+border: 0px;
+}
+
+* { show-decoration-selected: 0 }
+* { selection-background-color: darkblue }
