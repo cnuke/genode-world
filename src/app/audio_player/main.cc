@@ -679,6 +679,8 @@ struct Audio_player::Main
 		Genode::Signal_transmitter(config_dispatcher).submit();
 		config_rom.sigh(config_dispatcher);
 
+		handle_config();
+
 		Genode::Signal_transmitter(playlist_dispatcher).submit();
 		playlist_rom.sigh(playlist_dispatcher);
 
