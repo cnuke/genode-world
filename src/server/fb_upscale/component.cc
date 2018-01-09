@@ -50,16 +50,16 @@ class Fb_scaler::Session_component : public Genode::Rpc_object<Framebuffer::Sess
 			  Genode::size_t(_client_mode.width()*_client_mode.height())*2
 			};
 
-		Genode::Constructible<Genode::Attached_dataspace> _parent_ds;
+		Genode::Constructible<Genode::Attached_dataspace> _parent_ds { };
 
-		Genode::Signal_context_capability _client_sig_cap;
+		Genode::Signal_context_capability _client_sig_cap { };
 
 		enum { SHIFT = 16 };
 
-		int _scale_factor;
-		int _scale_ratio;
-		int _x_offset;
-		int _y_offset;
+		int _scale_factor { 0 };
+		int _scale_ratio  { 0 };
+		int _x_offset     { 0 };
+		int _y_offset     { 0 };
 
 		void _rescale()
 		{
