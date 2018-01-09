@@ -62,17 +62,27 @@ namespace Audio_player {
 
 struct Audio_player::Output
 {
+	private:
+
 	Audio_out::Connection  _left;
 	Audio_out::Connection  _right;
 	Audio_out::Connection *_out[NUM_CHANNELS];
 
-	Audio_out::Packet     *_alloc_position;
+	Audio_out::Packet     *_alloc_position { nullptr };
 
 	unsigned _packets_submitted = 0;
 
 	template <typename FUNC>
 	static void for_each_channel(FUNC const &func) {
 		for (int i = 0; i < Audio_player::NUM_CHANNELS; i++) func(i); }
+
+	/*
+	 * Noncopyable
+	 */
+	Output(Output const &);
+	Output &operator = (Output const &);
+
+	public:
 
 	/**
 	 * Constructor
@@ -154,7 +164,7 @@ struct Audio_player::Output
 			float *left_content  = p[LEFT]->content();
 			float *right_content = p[RIGHT]->content();
 
-			for (int i = 0; i < Audio_out::PERIOD; i++) {
+			for (unsigned i = 0; i < Audio_out::PERIOD; i++) {
 					left_content[i]  = tmp[i * NUM_CHANNELS + LEFT];
 					right_content[i] = tmp[i * NUM_CHANNELS + RIGHT];
 			}
@@ -180,7 +190,7 @@ class Audio_player::Playlist
 
 		struct Track : public Util::List<Track>::Element
 		{
-			Path     path;
+			Path     path { };
 			unsigned id = 0;
 
 			Track() { }
@@ -199,7 +209,7 @@ class Audio_player::Playlist
 	private:
 
 		Genode::Allocator &_alloc;
-		Util::List<Track>  _track_list;
+		Util::List<Track>  _track_list { };
 		Track             *_curr_track = nullptr;
 
 		typedef enum { MODE_ONCE, MODE_REPEAT } Mode;
@@ -220,6 +230,12 @@ class Audio_player::Playlist
 				Genode::destroy(&_alloc, t);
 			}
 		}
+
+		/*
+		 * Noncopyable
+		 */
+		Playlist(Playlist const &);
+		Playlist &operator = (Playlist const &);
 
 	public:
 
@@ -335,7 +351,7 @@ class Audio_player::Decoder
 		AVStream        *_stream     = nullptr;
 		AVFormatContext *_format_ctx = nullptr;
 		AVCodecContext  *_codec_ctx  = nullptr;
-		AVPacket         _packet;
+		AVPacket         _packet { };
 
 		AVAudioResampleContext *_avr = nullptr;
 
@@ -343,7 +359,7 @@ class Audio_player::Decoder
 
 		Playlist::Track const &_track;
 
-		Genode::Constructible<File_info> _track_info;
+		Genode::Constructible<File_info> _track_info { };
 
 		void _close()
 		{
@@ -372,6 +388,12 @@ class Audio_player::Decoder
 
 			registered = true;
 		}
+
+		/*
+		 * Noncopyable
+		 */
+		Decoder(Decoder const &);
+		Decoder &operator = (Decoder const &);
 
 	public:
 
@@ -539,7 +561,7 @@ class Audio_player::Decoder
 		 * \param frame_data reference to destination buffer
 		 * \param min minimal number of bytes that have to be decoded at least
 		 */
-		int fill_buffer(Genode::Env &env, Frame_data &frame_data, size_t min)
+		int fill_buffer(Frame_data &frame_data, size_t min)
 		{
 			size_t written = 0;
 
@@ -594,6 +616,16 @@ class Audio_player::Decoder
 
 struct Audio_player::Main
 {
+	private:
+
+		/*
+		 * Noncopyable
+		 */
+		Main(Main const &);
+		Main &operator = (Main const &);
+
+	public:
+
 	Genode::Env        &env;
 
 	Genode::Heap        alloc { env.ram(), env.rm() } ;
@@ -604,11 +636,11 @@ struct Audio_player::Main
 		env.ep(), *this, &Main::handle_progress };
 
 	Output      output { env, progress_dispatcher };
-	Frame_data  frame_data;
+	Frame_data  frame_data { };
 	Decoder    *decoder = nullptr;
 
 	Playlist        playlist { alloc };
-	Playlist::Track track;
+	Playlist::Track track { };
 
 	void scan_playlist();
 
@@ -779,7 +811,7 @@ void Audio_player::Main::handle_progress()
 		if (decoder && frame_data.read_avail() <= output.frame_size()) {
 
 			size_t const req_size = output.frame_size();
-			int const n = decoder->fill_buffer(env, frame_data, req_size);
+			int const n = decoder->fill_buffer(frame_data, req_size);
 			if (n == 0) {
 				Genode::destroy(&alloc, decoder);
 				decoder = nullptr;
