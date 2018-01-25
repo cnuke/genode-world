@@ -644,7 +644,7 @@ struct Audio_player::Main
 
 	void scan_playlist();
 
-	Genode::Reporter playlist_reporter { env, "playlist" };
+	Genode::Reporter playlist_reporter { env, "playlist", "playlist", 64 * 1024 };
 	bool report_playlist = false;
 
 	void handle_playlist();
