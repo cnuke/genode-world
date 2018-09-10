@@ -1,0 +1,49 @@
+This directory contains a component that fetches the current weather from
+https://openweathermap.org/ and generates a report that is used to display the
+information via a menu_view component.
+
+Configuration
+~~~~~~~~~~~~~
+
+! <config update_interval="30" api_key="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+!   <location id="2935022" query="Dresden,DE" units="metric"/>
+!   <vfs>
+!     <dir name="dev">
+!       <log/> <null/>
+!       <inline name="rtc">2018-09-10 00:00</inline>
+!       <inline name="random">01234567890123456789</inline>
+!     </dir>
+!     <dir name="socket"> <lxip dhcp="yes"/> </dir>
+!   </vfs>
+!   <libc stdout="/dev/null" stderr="/dev/null" rtc="/dev/rtc" socket="/socket"/>
+! </config>
+
+This exemplary configuration will poll OWM every 30 minutes using the specified
+API key and will ask for the current weather in Dresden. The location can be
+specified either by the ID, which can be obtain on the OWM website, or by name.
+If both attributes are specified the 'id' attribute takes precedence. The
+temperature is requested in Celsius. Valid values for the 'units' attribute are
+'imperial' (Fahrenheit) and 'metric' (Celsius). If it is omitted, the
+temperature will be requested in Kelvin by default.
+
+Report
+~~~~~~
+
+The generated Report looks as follows
+
+! <dialog>
+!   <frame>
+!     <vbox>
+!       <label text="Dresden"/>
+!       <hbox>
+!         <label text="broken clouds"/>
+!         <label text="11"/>
+!         <label text="°C"/>
+!       </hbox>
+!     </vbox>
+!   </frame>
+! </dialog>
+
+while the LOG message looks like this:
+
+! Current: 'Dresden' 11°C (broken clouds)
