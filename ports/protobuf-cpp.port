@@ -1,0 +1,173 @@
+LICENSE   := BSDv2
+VERSION   := 3.6.1
+DOWNLOADS := protobuf-cpp.archive
+
+BASE_URL := https://github.com/protocolbuffers/protobuf/releases/download
+URL(protobuf-cpp) := $(BASE_URL)/v$(VERSION)/protobuf-cpp-$(VERSION).tar.gz
+SHA(protobuf-cpp) := b3732e471a9bb7950f090fd0457ebd2536a9ba0891b7f3785919c654fe2a2529
+DIR(protobuf-cpp) := src/lib/protobuf-cpp
+
+BASE_DIR := src/lib/protobuf-cpp/src/google/protobuf/
+
+DIRS := include/google/protobuf \
+        include/google/protobuf/compiler \
+        include/google/protobuf/compiler/cpp \
+        include/google/protobuf/compiler/csharp \
+        include/google/protobuf/compiler/java \
+        include/google/protobuf/compiler/js \
+        include/google/protobuf/compiler/objectivec \
+        include/google/protobuf/compiler/php \
+        include/google/protobuf/compiler/python \
+        include/google/protobuf/compiler/ruby \
+        include/google/protobuf/io \
+        include/google/protobuf/stubs \
+        include/google/protobuf/util
+
+HEADERS := any.h \
+           any.pb.h \
+           any.proto \
+           api.pb.h \
+           api.proto \
+           arena.h \
+           arena_impl.h \
+           arenastring.h \
+           descriptor.h \
+           descriptor.pb.h \
+           descriptor.proto \
+           descriptor_database.h \
+           duration.pb.h \
+           duration.proto \
+           dynamic_message.h \
+           empty.pb.h \
+           empty.proto \
+           extension_set.h \
+           field_mask.pb.h \
+           field_mask.proto \
+           generated_enum_reflection.h \
+           generated_enum_util.h \
+           generated_message_reflection.h \
+           generated_message_table_driven.h \
+           generated_message_util.h \
+           has_bits.h \
+           implicit_weak_message.h \
+           inlined_string_field.h \
+           map.h \
+           map_entry.h \
+           map_entry_lite.h \
+           map_field.h \
+           map_field_inl.h \
+           map_field_lite.h \
+           map_type_handler.h \
+           message.h \
+           message_lite.h \
+           metadata.h \
+           metadata_lite.h \
+           reflection.h \
+           reflection_ops.h \
+           repeated_field.h \
+           service.h \
+           source_context.pb.h \
+           source_context.proto \
+           struct.pb.h \
+           struct.proto \
+           text_format.h \
+           timestamp.pb.h \
+           timestamp.proto \
+           type.pb.h \
+           type.proto \
+           unknown_field_set.h \
+           wire_format.h \
+           wire_format_lite.h \
+           wire_format_lite_inl.h \
+           wrappers.pb.h \
+           wrappers.proto
+DIR_CONTENT(include/google/protobuf) := \
+	$(addprefix $(BASE_DIR), $(HEADERS))
+
+HEADERS_compiler := compiler/code_generator.h \
+                    compiler/command_line_interface.h \
+                    compiler/importer.h \
+                    compiler/parser.h \
+                    compiler/plugin.h \
+                    compiler/plugin.pb.h \
+                    compiler/plugin.proto
+DIR_CONTENT(include/google/protobuf/compiler) := \
+	$(addprefix $(BASE_DIR), $(HEADERS_compiler))
+
+HEADERS_compiler_cpp := compiler/cpp/cpp_generator.h
+DIR_CONTENT(include/google/protobuf/compiler/cpp) := \
+	$(addprefix $(BASE_DIR), $(HEADERS_compiler_cpp))
+
+HEADERS_compiler_csharp := compiler/csharp/csharp_generator.h \
+                           compiler/csharp/csharp_names.h
+DIR_CONTENT(include/google/protobuf/compiler/csharp) := \
+	$(addprefix $(BASE_DIR), $(HEADERS_compiler_csharp))
+
+HEADERS_compiler_java := compiler/java/java_generator.h \
+                         compiler/java/java_names.h
+DIR_CONTENT(include/google/protobuf/compiler/java) := \
+	$(addprefix $(BASE_DIR), $(HEADERS_compiler_java))
+
+HEADERS_compiler_js := compiler/js/js_generator.h \
+                       compiler/js/well_known_types_embed.h
+DIR_CONTENT(include/google/protobuf/compiler/js) := \
+	$(addprefix $(BASE_DIR), $(HEADERS_compiler_js))
+
+HEADERS_compiler_objectivec := compiler/objectivec/objectivec_generator.h \
+                               compiler/objectivec/objectivec_helpers.h
+DIR_CONTENT(include/google/protobuf/compiler/objectivec) := \
+	$(addprefix $(BASE_DIR), $(HEADERS_compiler_objectivec))
+
+HEADERS_compiler_php := compiler/php/php_generator.h
+DIR_CONTENT(include/google/protobuf/compiler/php) := \
+	$(addprefix $(BASE_DIR), $(HEADERS_compiler_php))
+
+HEADERS_compiler_python := compiler/python/python_generator.h
+DIR_CONTENT(include/google/protobuf/compiler/python) := \
+	$(addprefix $(BASE_DIR), $(HEADERS_compiler_python))
+
+HEADERS_compiler_ruby := compiler/ruby/ruby_generator.h
+DIR_CONTENT(include/google/protobuf/compiler/ruby) := \
+	$(addprefix $(BASE_DIR), $(HEADERS_compiler_ruby))
+
+HEADERS_io := io/coded_stream.h \
+              io/gzip_stream.h \
+              io/printer.h \
+              io/strtod.h \
+              io/tokenizer.h \
+              io/zero_copy_stream.h \
+              io/zero_copy_stream_impl.h \
+              io/zero_copy_stream_impl_lite.h
+DIR_CONTENT(include/google/protobuf/io) := \
+	$(addprefix $(BASE_DIR), $(HEADERS_io))
+
+HEADERS_stubs := stubs/bytestream.h \
+                 stubs/callback.h \
+                 stubs/casts.h \
+                 stubs/common.h \
+                 stubs/fastmem.h \
+                 stubs/hash.h \
+                 stubs/logging.h \
+                 stubs/macros.h \
+                 stubs/mutex.h \
+                 stubs/once.h \
+                 stubs/platform_macros.h \
+                 stubs/port.h \
+                 stubs/singleton.h \
+                 stubs/status.h \
+                 stubs/stl_util.h \
+                 stubs/stringpiece.h \
+                 stubs/template_util.h
+DIR_CONTENT(include/google/protobuf/stubs) := \
+	$(addprefix $(BASE_DIR), $(HEADERS_stubs))
+
+HEADERS_util := util/delimited_message_util.h \
+                util/field_comparator.h \
+                util/field_mask_util.h \
+                util/json_util.h \
+                util/message_differencer.h \
+                util/time_util.h \
+                util/type_resolver.h \
+                util/type_resolver_util.h
+DIR_CONTENT(include/google/protobuf/util) := \
+	$(addprefix $(BASE_DIR), $(HEADERS_util))
