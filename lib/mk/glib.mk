@@ -4,7 +4,7 @@ GLIB_PORT_DIR = $(call select_from_ports,glib)
 
 GLIB_SRC_DIR = $(GLIB_PORT_DIR)/src/lib/glib/glib
 
-LIBS += libc libiconv
+LIBS += libc libiconv pthread
 
 CC_DEF += \
 	-DGLIB_MAJOR_VERSION=2 -DGLIB_MINOR_VERSION=52 -DGLIB_MICRO_VERSION=2 \
