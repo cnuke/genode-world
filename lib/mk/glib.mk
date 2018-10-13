@@ -44,7 +44,7 @@ LIBCHARSET_SRC := $(notdir $(wildcard $(GLIB_SRC_DIR)/libcharset/*.c))
 GLIB_SRC := $(notdir $(wildcard $(GLIB_SRC_DIR)/*.c))
 
 GLIB_FILTER := \
-	goption.c guuid.c win_iconv.c \
+	guuid.c win_iconv.c \
 	$(notdir $(wildcard $(GLIB_SRC_DIR)/*win32*.c)) \
 	$(notdir $(wildcard $(GLIB_SRC_DIR)/*win64*.c))
 
