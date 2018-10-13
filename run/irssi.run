@@ -1,0 +1,77 @@
+set build_components {
+	app/irssi
+	lib/vfs/jitterentropy
+	lib/vfs/lwip
+	lib/vfs/pipe
+	lib/vfs/ttf
+	server/nic_loopback
+	server/terminal
+}
+
+set app_config {
+	<start name="nic_loopback" priority="-1">
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Nic"/> </provides>
+	</start>
+	<start name="terminal" caps="150">
+		<resource name="RAM" quantum="12M"/>
+		<provides> <service name="Terminal"/> </provides>
+		<config>
+			<initial width="640" height="480"/>
+			<vfs>
+				<rom name="VeraMono.ttf"/>
+				<dir name="fonts">
+					<dir name="monospace">
+						<ttf name="regular" path="/VeraMono.ttf" size_px="12"/>
+					</dir>
+				</dir>
+			</vfs>
+		</config>
+		<route>
+			<service name="Gui"> <child name="nitpicker"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+	<start name="irssi" caps="200">
+		<resource name="RAM" quantum="32M"/>
+		<config ld_verbose="yes" verbose="yes">
+			<env key="TERM" value="screen"/>
+			<env key="HOME" value="/home"/>
+			<env key="LC_CTYPE" value="en_US.UTF-8"/>
+			<vfs>
+				<dir name="socket">
+					<lwip ip_addr="127.0.0.1" netmask="255.0.0.0" gateway="0.0.0.0"/> </dir>
+				<dir name="dev">
+					<log/> <terminal/>
+					<inline name="rtc">2021-03-13 00:00</inline>
+					<jitterentropy name="random"/>
+					<dir name="pipe"> <pipe/> </dir>
+				</dir>
+				<dir name="home"> <ram/> </dir>
+			</vfs>
+			<libc stdin="/dev/terminal" stdout="/dev/terminal" stderr="/dev/log" socket="/socket" rtc="/dev/rtc" pipe="/dev/pipe"/>
+		</config>
+		<route>
+			<service name="Nic"> <child name="nic_loopback"/> </service>
+			<service name="Terminal"> <child name="terminal"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>}
+
+#
+# Boot modules
+#
+
+# generic modules
+append boot_modules {
+	libc.lib.so vfs.lib.so libm.lib.so
+	vfs_lwip.lib.so
+	nic_loopback terminal
+	irssi glib.lib.so ffi.lib.so pcre.lib.so ncurses.lib.so
+	posix.lib.so
+	libiconv.lib.so libssl.lib.so libcrypto.lib.so zlib.lib.so
+	vfs_ttf.lib.so vfs_pipe.lib.so vfs_jitterentropy.lib.so
+	VeraMono.ttf
+}
+
+source ${genode_dir}/repos/world/run/gui_app.inc

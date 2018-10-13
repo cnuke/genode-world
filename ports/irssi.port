@@ -1,0 +1,8 @@
+LICENSE   := GPLv2
+VERSION   := 1.1.1
+DOWNLOADS := irssi.archive
+
+BASE_URL   := https://github.com/irssi/irssi/releases/download
+URL(irssi) := $(BASE_URL)/$(VERSION)/irssi-$(VERSION).tar.xz
+SHA(irssi) := 784807e7a1ba25212347f03e4287cff9d0659f076edfb2c6b20928021d75a1bf
+DIR(irssi) := src/app/irssi
