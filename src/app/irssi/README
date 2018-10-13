@@ -1,0 +1,3 @@
+XXX glib_init call in constructor in glib-init.c must be removed
+    for now b/c it will eventually call libc functions while the
+    libc is being initialized
