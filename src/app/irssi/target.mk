@@ -1,6 +1,6 @@
 TARGET := irssi
 
-LIBS += libc posix libcrypto libssl glib pcre ncurses
+LIBS += libc libc_pipe posix libcrypto libssl glib pcre ncurses
 
 IRSSI_DIR := $(call select_from_ports,irssi)/src/app/irssi
 
