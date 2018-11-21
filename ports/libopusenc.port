@@ -1,0 +1,10 @@
+LICENSE   := BSD
+VERSION   := git
+DOWNLOADS := libopusenc.git
+
+URL(libopusenc) := https://github.com/xiph/libopusenc.git
+REV(libopusenc) := b19e1b14dee3e5245f2e37bfb193bde72fa70a2d
+DIR(libopusenc) := src/lib/libopusenc
+
+DIRS := include/libopusenc
+DIR_CONTENT(include/libopusenc) := src/lib/libopusenc/include/*
