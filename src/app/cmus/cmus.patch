@@ -1,0 +1,108 @@
+--- src/app/cmus/server.c
++++ src/app/cmus/server.c
+@@ -51,7 +51,7 @@
+ #include <fcntl.h>
+ #include <ctype.h>
+ 
+-int server_socket;
++int server_socket = -1;
+ LIST_HEAD(client_head);
+ 
+ static char *title_buf = NULL;
+@@ -365,7 +365,7 @@ void server_init(char *address)
+ 
+ 	server_socket = socket(addr.sa.sa_family, SOCK_STREAM, 0);
+ 	if (server_socket == -1)
+-		die_errno("socket");
++		return;
+ 
+ 	if (bind(server_socket, &addr.sa, addrlen) == -1) {
+ 		int sock;
+--- src/app/cmus/ui_curses.c
++++ src/app/cmus/ui_curses.c
+@@ -2185,7 +2185,8 @@ static void main_loop(void)
+ 		SELECT_ADD_FD(0);
+ 		SELECT_ADD_FD(job_fd);
+ 		SELECT_ADD_FD(cmus_next_track_request_fd);
+-		SELECT_ADD_FD(server_socket);
++		if (server_socket > 0)
++			SELECT_ADD_FD(server_socket);
+ 		if (mpris_fd != -1)
+ 			SELECT_ADD_FD(mpris_fd);
+ 		list_for_each_entry(client, &client_head, node) {
+@@ -2233,7 +2234,7 @@ static void main_loop(void)
+ 				update_statusline();
+ 			}
+ 		}
+-		if (FD_ISSET(server_socket, &set))
++		if (server_socket > 0 && FD_ISSET(server_socket, &set))
+ 			server_accept();
+ 
+ 		// server_serve() can remove client from the list
+@@ -2469,41 +2471,8 @@ static const char *usage =
+ "Use cmus-remote to control cmus from command line.\n"
+ "Report bugs to <cmus-devel@lists.sourceforge.net>.\n";
+ 
+-int main(int argc, char *argv[])
++void *main_entry(void *arg)
+ {
+-	int list_plugins = 0;
+-
+-	program_name = argv[0];
+-	argv++;
+-	while (1) {
+-		int idx;
+-		char *arg;
+-
+-		idx = get_option(&argv, options, &arg);
+-		if (idx < 0)
+-			break;
+-
+-		switch (idx) {
+-		case FLAG_HELP:
+-			printf(usage, program_name);
+-			return 0;
+-		case FLAG_VERSION:
+-			printf("cmus " VERSION
+-			       "\nCopyright 2004-2006 Timo Hirvonen"
+-			       "\nCopyright 2008-2016 Various Authors\n");
+-			return 0;
+-		case FLAG_PLUGINS:
+-			list_plugins = 1;
+-			break;
+-		case FLAG_LISTEN:
+-			server_address = xstrdup(arg);
+-			break;
+-		case FLAG_SHOW_CURSOR:
+-			show_cursor = 1;
+-			break;
+-		}
+-	}
+-
+ 	setlocale(LC_CTYPE, "");
+ 	setlocale(LC_COLLATE, "");
+ 	charset = getenv("CMUS_CHARSET");
+@@ -2525,13 +2494,18 @@ int main(int argc, char *argv[])
+ 
+ 	ip_load_plugins();
+ 	op_load_plugins();
+-	if (list_plugins) {
+-		ip_dump_plugins();
+-		op_dump_plugins();
+-		return 0;
+-	}
++
+ 	init_all();
+ 	main_loop();
+ 	exit_all();
++	return (void*)0;
++}
++
++int main(int argc, char *argv[])
++{
++	pthread_rwlock_t main_thread;
++	int rc = pthread_create(&main_thread, NULL, main_entry, NULL);
++
++	pthread_join(main_thread, NULL);
+ 	return 0;
+ }
