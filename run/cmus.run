@@ -26,6 +26,7 @@ set build_components {
 	lib/cmus/ip/opus
 	lib/cmus/ip/vorbis
 	lib/cmus/op/oss
+	lib/cmus/op/sndio
 }
 
 source ${genode_dir}/repos/base/run/platform_drv.inc
@@ -171,7 +172,7 @@ append config {
 							<rom name="cmus_ip_opus.lib.so"/>
 							<rom name="cmus_ip_vorbis.lib.so"/>
 						</dir>
-						<dir name="op"> <rom name="cmus_op_oss.lib.so"/> </dir>
+						<dir name="op"> <rom name="cmus_op_sndio.lib.so"/> </dir>
 					</dir>
 				</dir>
 				<dir name="share">
@@ -220,6 +221,7 @@ append boot_modules {
 	ed25519_key cmus libiconv.lib.so
 
 	cmus_op_oss.lib.so
+	cmus_op_sndio.lib.so libsndio.lib.so
 	cmus_ip_vorbis.lib.so libogg.lib.so libvorbis.lib.so
 	cmus_ip_opus.lib.so opus.lib.so
 	cmus_ip_flac.lib.so libFLAC.lib.so
