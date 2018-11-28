@@ -1,7 +1,7 @@
 CMUS_DIR := $(call select_from_ports,cmus)/src/app/cmus
 
 TARGET := cmus
-LIBS   := base libc posix ncurses libiconv pthread libc_pipe
+LIBS   := base libc posix ncurses libiconv libc_pipe
 
 INC_DIR += $(CMUS_DIR)
 INC_DIR += $(PRG_DIR)
