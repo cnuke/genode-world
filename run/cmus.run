@@ -160,9 +160,10 @@ append config {
 					<oss name="dsp"/>
 				</dir>
 				<dir name="media">
-					<rom name="skal.ogg"/>
-					<rom name="raven.flac"/>
-					<rom name="chip.opus"/>
+					<rom name="foo.mp3"/>
+					<rom name="foo.ogg"/>
+					<rom name="foo.opus"/>
+					<rom name="foo.flac"/>
 				</dir>
 				<dir name="home"> <ram/> </dir>
 				<dir name="lib">
@@ -170,9 +171,10 @@ append config {
 						<dir name="ip">
 							<rom name="cmus_ip_flac.lib.so"/>
 							<rom name="cmus_ip_opus.lib.so"/>
+							<rom name="cmus_ip_mad.lib.so"/>
 							<rom name="cmus_ip_vorbis.lib.so"/>
 						</dir>
-						<dir name="op"> <rom name="cmus_op_sndio.lib.so"/> </dir>
+						<dir name="op"> <rom name="cmus_op_oss.lib.so"/> </dir>
 					</dir>
 				</dir>
 				<dir name="share">
@@ -225,10 +227,11 @@ append boot_modules {
 	cmus_ip_vorbis.lib.so libogg.lib.so libvorbis.lib.so
 	cmus_ip_opus.lib.so opus.lib.so
 	cmus_ip_flac.lib.so libFLAC.lib.so
+	cmus_ip_mad.lib.so libmad.lib.so
 
 	rc
 
-	vfs_oss.lib.so skal.ogg chip.opus raven.flac
+	vfs_oss.lib.so foo.mp3 foo.ogg foo.opus foo.flac
 }
 
 # platform-specific modules
