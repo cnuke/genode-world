@@ -1,0 +1,7 @@
+LICENSE   := ISC
+VERSION   := git
+DOWNLOADS := encpipe.git
+
+URL(encpipe) := https://github.com/jedisct1/encpipe
+REV(encpipe) := c1ad16c159abcf111af04ddb392c394a1ae91672
+DIR(encpipe) := src/app/encpipe
