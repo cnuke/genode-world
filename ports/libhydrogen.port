@@ -1,0 +1,10 @@
+LICENSE   := ISC
+VERSION   := git
+DOWNLOADS := libhydrogen.git
+
+URL(libhydrogen) := https://github.com/jedisct1/libhydrogen
+REV(libhydrogen) := c9b4bea198e2057c452b3bfd558753149c8b06d3
+DIR(libhydrogen) := src/lib/libhydrogen
+
+DIRS := include/libhydrogen
+DIR_CONTENT(include/libhydrogen) := src/lib/libhydrogen/hydrogen.h
