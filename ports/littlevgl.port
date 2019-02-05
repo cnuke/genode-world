@@ -1,0 +1,15 @@
+LICENSE   := BSD-2-Clause
+VERSION   := 5.3
+DOWNLOADS := littlevgl.archive
+
+BASE_URL       := https://github.com/littlevgl/lvgl/archive
+URL(littlevgl) := $(BASE_URL)/v$(VERSION).tar.gz
+SHA(littlevgl) := e276cf3998277b253cd7b6b270b0e414251e157572f7adb8a9136289556e187e
+DIR(littlevgl) := src/lib/littlevgl
+
+DIRS := include/littlevgl
+DIR_CONTENT(include/littlevgl) := src/lib/littlevgl/lvgl.h \
+                                  src/lib/littlevgl/lv_version.h
+
+PATCHES   := src/lib/lvgl/include_paths.patch
+PATCH_OPT := -p1 -d src/lib/littlevgl
