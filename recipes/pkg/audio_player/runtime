@@ -1,8 +1,8 @@
 <runtime ram="32M" caps="200" binary="audio_player">
 
-	<requires> <audio_out/> <timer/> <file_system/> </requires>
-
-	<config/>
+	<requires>
+		<audio_out/> <file_system label="media"/> <report/> <timer/>
+	</requires>
 
 	<content>
 		<rom label="ld.lib.so"/>
@@ -17,5 +17,11 @@
 		<rom label="avresample.lib.so"/>
 		<rom label="avutil.lib.so"/>
 	</content>
+
+	<config state="playing">
+		<report progress="yes" interval="1" playlist="1"/>
+		<vfs> <fs label="media"/> </vfs>
+		<libc/>
+	</config>
 
 </runtime>
