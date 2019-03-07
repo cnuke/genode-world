@@ -1,0 +1,7 @@
+base
+libc
+libsodium
+os
+posix
+so
+vfs

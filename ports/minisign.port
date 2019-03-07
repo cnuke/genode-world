@@ -1,0 +1,7 @@
+LICENSE   := ISC
+VERSION   := git
+DOWNLOADS := minisign.git
+
+URL(minisign) := https://github.com/jedisct1/minisign
+REV(minisign) := 9eac49b161f6d9c5f20fe8914b3071f91d707d6c
+DIR(minisign) := src/app/minisign
