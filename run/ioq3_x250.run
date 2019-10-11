@@ -4,7 +4,7 @@ set build_components {
 	drivers/gpu/intel
 	drivers/input
 	drivers/nic
-	drivers/timer
+	timer
 	drivers/usb
 	drivers/framebuffer/vesa
 	server/input_filter
@@ -71,7 +71,7 @@ append_if [expr ![have_spec sdl]] config {
 			<mixer field="outputs.master" value="64"/>
 		</config>
 	</start>
-	<start name="nic_drv">
+	<start name="ipxe_nic_drv">
 		<resource name="RAM" quantum="10M" />
 		<provides><service name="Nic" /></provides>
 	</start>
@@ -97,7 +97,6 @@ append_if [expr ![have_spec sdl]] config {
 			<service name="Timer"> <child name="timer"/> </service>
 			<service name="Input" label="ps2"> <child name="ps2_drv" /> </service>
 			<service name="Input" label="usb"> <child name="usb_drv" /> </service>
-			<route><any-service> <parent /> <any-child/> </any-service></route>
 		</route>
 	</start>}
 
@@ -108,7 +107,7 @@ append_if [have_spec ps2] config {
 	</start>}
 
 append config {
-	<start name="fb_drv">
+	<start name="vesa_fb_drv">
 		<resource name="RAM" quantum="10M"/>
 		<provides>
 			<service name="Framebuffer"/>
@@ -146,16 +145,15 @@ append config {
 install_config $config
 
 set boot_modules {
-	core init ld.lib.so timer intel_gpu_drv fb_drv
-	nic_drv usb_drv input_filter
+	core init ld.lib.so timer intel_gpu_drv vesa_fb_drv
+	ipxe_nic_drv usb_drv input_filter
 
-	libc.lib.so libm.lib.so pthread.lib.so
+	libc.lib.so libm.lib.so
 	egl.lib.so mesa.lib.so stdcxx.lib.so
 	expat.lib.so glapi.lib.so egl_swrast.lib.so egl_i965.lib.so
 	drm.lib.so
 
 	sdl.lib.so assets.tar ioq3
-	libc_resolv.lib.so lwip.lib.so
 }
 
 lappend_if [have_spec sdl] boot_modules fb_sdl
@@ -168,9 +166,7 @@ append_platform_drv_boot_modules
 build_boot_image $boot_modules
 
 append qemu_args " -m 768 -nographic"
-append qemu_args " -net user -redir tcp:5555::5555"
 append_if [have_spec x86] qemu_args " -net nic,model=e1000 "
-append_if [have_spec lan9118] qemu_args " -net nic,model=lan9118 "
 
 run_genode_until forever
 

@@ -1,13 +1,12 @@
 TARGET      = ioq3
 LIBS        = libc sdl egl mesa \
-              ioq3_bot ioq3_common ioq3_renderer libc_resolv libc_lwip_nic_dhcp
+              ioq3_bot ioq3_common ioq3_renderer
 
 SRC_C       = con_log.c con_passive.c sys_main.c sys_unix.c
 SRC_CC      = main.cc
 
 LD_OPT    = --export-dynamic
 
-CC_OPT_sys_main = -Dmain=ioq3_main
 CC_OPT      = -Wimplicit -pipe -DUSE_ICON -DNO_GZIP \
               -DUSE_INTERNAL_JPEG  -DUSE_LOCAL_HEADERS -DSTANDALONE \
               -DPRODUCT_VERSION=\"1.36-GIT\" -Wformat=2 -Wno-format-zero-length \

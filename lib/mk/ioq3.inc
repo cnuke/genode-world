@@ -9,6 +9,6 @@ CC_OPT      = -Wimplicit -pipe -DUSE_ICON -DNO_GZIP \
               -falign-jumps=2 -falign-functions=2 -fstrength-reduce -ffast-math
  
 #CC_MARCH    = -march=core2 -m32
-LIBS        = sdl mesa egl pthread libc libm
+LIBS        = sdl mesa egl libc libm
 
 vpath %.c $(IOQ3_DIR)
