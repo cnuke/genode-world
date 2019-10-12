@@ -58,6 +58,7 @@ install_config {
 		</route>
 		<provides>
 			<service name="Input"/> <service name="Framebuffer"/>
+			<service name="Platform"/>
 		</provides>
 	</start>
 
