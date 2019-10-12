@@ -42,10 +42,25 @@ static void* sdl_main(void *)
 }
 
 
+/* potentially needed by MESA (i965 DRM backend) */
+Genode::Env                                      *genode_env;
+static Genode::Constructible<Genode::Entrypoint>  signal_ep { };
+
+
+Genode::Entrypoint &genode_entrypoint()
+{
+	return *signal_ep;
+}
+
+
 void Libc::Component::construct(Libc::Env &env)
 {
 	using Genode::Xml_node;
 	using Genode::Xml_attribute;
+
+	genode_env = &env;
+	signal_ep.construct(*genode_env, 1024*sizeof(long), "sdl_signal_ep",
+	                    Genode::Affinity::Location());
 
 	env.config([&] (Xml_node const &node) {
 		int argc = 0;
