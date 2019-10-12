@@ -18,6 +18,7 @@ set app_config {
 	<start name="intel_gpu_drv" caps="500">
 		<resource name="RAM" quantum="40M"/>
 		<provides> <service name="Gpu"/> </provides>
+		<config fb_size="64M"/>
 		<route>
 			<service name="Platform"> <child name="drivers" /> </service>
 			<any-service> <parent /> <any-child/> </any-service>
