@@ -2,7 +2,7 @@ set build_components {
 	drivers/gpu/intel
 	lib/mesa/swrast
 	lib/mesa/i965
-	lib/vfs/lwip
+	lib/vfs/lxip
 	app/ioq3
 }
 
@@ -31,15 +31,18 @@ set app_config {
 			<libc stdout="/dev/log" stderr="/dev/log" socket="/socket"/>
 			<vfs>
 				<dir name="dev"> <log/> </dir>
-				<tar name="ioq3_assets.tar"/>
+				<dir name="foobar">
+					<tar name="ioq3_assets.tar"/>
+					<ram/>
+				</dir>
 				<dir name="socket">
-					<lwip ip_addr="127.0.0.1" netmask="255.0.0.0" gateway="0.0.0.0"/> </dir>
+					<lxip ip_addr="127.0.0.1" netmask="255.0.0.0" gateway="0.0.0.0"/> </dir>
 				<ram/>
 			</vfs>
 		</config>
 		<route>
 			<service name="Nitpicker"> <child name="wm"/> </service>
-			<service name="ROM" label="egl_drv.lib.so"> <parent label="egl_swrast.lib.so"/> </service>
+			<service name="ROM" label="egl_drv.lib.so"> <parent label="egl_i965.lib.so"/> </service>
 			<any-service> <parent /> <any-child/> </any-service>
 		</route>
 	</start>}
@@ -59,7 +62,7 @@ if {![file exists bin/ioq3_assets.tar]} {
 append boot_modules {
 	libc.lib.so vfs.lib.so libm.lib.so
 	sdl.lib.so
-	vfs_lwip.lib.so
+	vfs_lxip.lib.so lxip.lib.so
 
 	intel_gpu_drv
 	ipxe_nic_drv
