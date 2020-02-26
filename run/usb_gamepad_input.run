@@ -1,45 +1,28 @@
-assert_spec x86
-set usb_raw_device "x.x"
-
-if {[have_include power_on/qemu]} {
-        if {![info exists ::env(USB_RAW_DEVICE)]} {
-                puts "\nPlease define USB_RAW_DEVICE environment variable and set it to your USB device <bus.device>\n"
-                exit 0
-        }
-        set usb_raw_device $::env(USB_RAW_DEVICE)
+if {![have_board pc]} {
+	puts "\nRun script is not supported on this platform.\n";
+	exit 0
 }
 
-set use_qemu [have_include "power_on/qemu"]
-
-#
-# Build
-#
-
-set build_components {
-	core init
-	timer
-	drivers/usb
-	drivers/usb_gamepad_input
-	server/report_rom
-	test/input
+if {[get_cmd_switch --autopilot] && ![have_include "power_on/qemu"]} {
+	puts "\nAutopilot run is not supported on this platform\n"
+	exit 0
 }
 
-source ${genode_dir}/repos/base/run/platform_drv.inc
-append_platform_drv_build_components
-
-build $build_components
+proc usb_device_label {} { return "usb-1-2" }
 
 create_boot_directory
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/pkg/test_usb_host_drv-[board] \
+                  [depot_user]/src/report_rom \
+                  [depot_user]/src/event_dump \
+                  [depot_user]/src/init
 
-#
-# Generate config
-#
+build { drivers/usb_gamepad_input }
 
-set config {
+install_config {
 <config verbose="yes">
 	<parent-provides>
 		<service name="ROM"/>
-		<service name="RAM"/>
 		<service name="IRQ"/>
 		<service name="IO_MEM"/>
 		<service name="IO_PORT"/>
@@ -48,95 +31,78 @@ set config {
 		<service name="CPU"/>
 		<service name="LOG"/>
 	</parent-provides>
-	<default caps="128"/>
 	<default-route>
 		<any-service> <parent/> <any-child/> </any-service>
-	</default-route>}
+	</default-route>
 
-append_platform_drv_config
+	<default caps="100"/>
 
-append config {
 	<start name="timer">
 		<resource name="RAM" quantum="1M"/>
 		<provides> <service name="Timer"/> </provides>
 	</start>
+
 	<start name="report_rom">
 		<resource name="RAM" quantum="1M"/>
 		<provides> <service name="Report"/> <service name="ROM"/> </provides>
 		<config verbose="yes">
-			<default-policy report="usb_drv -> devices"/>
+			<default-policy report="usb_drv -> usb_drv -> devices"/>
 		</config>
 	</start>
-	<start name="usb_drv">
-		<resource name="RAM" quantum="12M"/>
+
+	<start name="usb_drv" caps="1500" managing_system="yes">
+		<binary name="init"/>
+		<resource name="RAM" quantum="32M"/>
 		<provides> <service name="Usb"/> </provides>
-		<config uhci="yes" ehci="yes" xhci="yes">
-			<raw>
-				<report devices="yes"/>}
-append_if [expr !$use_qemu] config  {
-				<!--
-					The order is important because only the first policy is
-					picked up - an entry may be moved to the front to test the
-					corresponding device.
-				 -->
-				<default-policy vendor_id="0x045e" product_id="0x028e"/> <!-- MS Xbox 360 -->
-				<default-policy vendor_id="0x045e" product_id="0x02d1"/> <!-- MS Xbox One -->
-				<default-policy vendor_id="0x054c" product_id="0x0268"/> <!-- DS3 -->
-				<default-policy vendor_id="0x054c" product_id="0x05c4"/> <!-- DS4 -->
-				<default-policy vendor_id="0x0583" product_id="0x2060"/> <!-- SNES replica -->
-				<default-policy vendor_id="0x0079" product_id="0x0006"/> <!-- N64 replica -->
-}
-append_if $use_qemu config {
-				<default-policy bus="0x002" dev="0x002"/> }
-append config {
-			</raw>
-		</config>
 		<route>
+			<service name="ROM" label="config">
+				<parent label="drivers.config"/> </service>
 			<service name="Report"> <child name="report_rom"/> </service>
-			<any-service> <parent/> <any-child/> </any-service>
+			<service name="Timer">  <child name="timer"/> </service>
+			<any-service> <parent/> </any-service>
 		</route>
 	</start>
+
 	<start name="usb_gamepad_input_drv">
 		<resource name="RAM" quantum="2M"/>
-		<provides> <service name="Input"/> </provides>
 		<config/>
 		<route>
-			<service name="Usb"> <child name="usb_drv"/> </service>
+			<service name="Event"> <child name="event_dump"/> </service>
+			<service name="Usb"> <child name="usb_drv" label="} [usb_device_label] {"/> </service>
 			<any-service> <parent/> <any-child/> </any-service>
 		</route>
 	</start>
 
-	<start name="test-input">
+	<start name="event_dump">
 		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Event"/> </provides>
 		<route>
-			<service name="Input"> <child name="usb_gamepad_input_drv"/> </service>
 			<any-service> <parent/> <any-child/> </any-service>
 		</route>
 	</start>
 </config>}
 
-install_config $config
-
 #
-# Boot modules
+# Define USB host controller config
 #
-
-# generic modules
-set boot_modules {
-	core ld.lib.so init
-	timer report_rom usb_drv usb_gamepad_input_drv
-	test-input
-}
-
-append_platform_drv_boot_modules
-
-build_boot_image $boot_modules
-
+# <default-policy vendor_id="0x045e" product_id="0x028e"/> <!-- MS Xbox 360 -->
+# <default-policy vendor_id="0x045e" product_id="0x02d1"/> <!-- MS Xbox One -->
+# <default-policy vendor_id="0x054c" product_id="0x0268"/> <!-- DS3 -->
+# <default-policy vendor_id="0x054c" product_id="0x05c4"/> <!-- DS4 -->
+# <default-policy vendor_id="0x0583" product_id="0x2060"/> <!-- SNES replica -->
+# <default-policy vendor_id="0x0079" product_id="0x0006"/> <!-- N64 replica -->
 #
-# Qemu opts for EHCI
-#
+set fd [open [run_dir]/genode/usb_host_drv.config w]
+puts $fd { <config> <default-policy class="0xff"/> </config> }
+close $fd
+
+build_boot_image [build_artifacts]
+
+set usb_raw_host_bus $::env(USB_RAW_HOST_BUS)
+set usb_raw_host_addr $::env(USB_RAW_HOST_ADDR)
+
 append qemu_args "  -nographic "
-append qemu_args " -usb -usbdevice host:$usb_raw_device "
-append qemu_args " -device usb-ehci,id=ehci "
+append qemu_args " -device qemu-xhci,id=xhci "
+append qemu_args " -device usb-host,bus=xhci.0,hostbus=$usb_raw_host_bus,hostaddr=$usb_raw_host_addr "
 
 run_genode_until forever

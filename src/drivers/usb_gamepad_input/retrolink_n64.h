@@ -63,7 +63,8 @@ struct Retrolink_n64 : Hid_device
 		H = 5,
 		B = 6,
 
-		AXIS_XY = 0,
+		AXIS_X = 0,
+		AXIS_Y = 1,
 
 		ORIGIN     = 0x80,
 		HAT_ORIGIN = 0x0f,
@@ -164,7 +165,8 @@ struct Retrolink_n64 : Hid_device
 		int16_t const oyv = Utils::convert_u8_to_s16(oy);
 		int16_t const nyv = Utils::convert_u8_to_s16(ny);
 
-		Utils::check_axis(input_session, oxv, nxv, oyv, nyv, AXIS_XY);
+		Utils::check_axis(input_session, oxv, nxv, AXIS_X);
+		Utils::check_axis(input_session, oyv, nyv, AXIS_Y);
 
 		/* check digipad */
 		uint8_t const od = o->h & 0x0f;

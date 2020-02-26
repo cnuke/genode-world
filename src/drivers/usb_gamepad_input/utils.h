@@ -17,8 +17,7 @@
 /* Genode includes */
 #include <base/log.h>
 #include <usb/types.h>
-#include <input/keycodes.h>
-#include <input_session/connection.h>
+#include <event_session/connection.h>
 
 
 namespace Utils {
@@ -35,14 +34,15 @@ namespace Utils {
 
 	typedef signed short int16_t;
 	int16_t convert_u8_to_s16(uint8_t);
+	float convert_s16_to_float(int16_t);
 
-	template <typename T> void check_buttons(Input::Session_component&,
+	template <typename T> void check_buttons(Event::Session_client::Batch&,
 	                   T const, T const, uint8_t const, Input::Keycode[]);
 
-	void check_axis(Input::Session_component&,
-	                int16_t const, int16_t const, int16_t const, int16_t const, int const);
+	void check_axis(Event::Session_client::Batch&,
+	                int16_t const, int16_t const, int const);
 
-	void check_hat(Input::Session_component &, uint8_t const, uint8_t const);
+	void check_hat(Event::Session_client::Batch&, uint8_t const, uint8_t const);
 }
 
 void Utils::Dump::device(Device_descriptor &descr)
@@ -96,8 +96,15 @@ Utils::int16_t Utils::convert_u8_to_s16(uint8_t val)
 }
 
 
+float Utils::convert_s16_to_float(Utils::int16_t val)
+{
+	float const scale = 1.0f / 0x8000;
+    return val * scale;
+}
+
+
 template <typename T>
-void Utils::check_buttons(Input::Session_component &input_session,
+void Utils::check_buttons(Event::Session_client::Batch &batch,
                           T const prev, T const curr,
                           uint8_t const count, Input::Keycode mapping[])
 {
@@ -108,29 +115,30 @@ void Utils::check_buttons(Input::Session_component &input_session,
 
 		bool const press = !(prev & idx) && (curr & idx);
 
-		Input::Event ev(press ? Input::Event::PRESS : Input::Event::RELEASE,
-		                mapping[i], 0, 0, 0, 0);
-		input_session.submit(ev);
+		Input::Event ev { };
+		if (press) { ev = Input::Press   { mapping[i] }; }
+		else       { ev = Input::Release { mapping[i] }; }
+		batch.submit(ev);
 	}
 }
 
 
-void Utils::check_axis(Input::Session_component &input_session,
-                       int16_t const ox, int16_t const nx,
-                       int16_t const oy, int16_t const ny,
+void Utils::check_axis(Event::Session_client::Batch &batch,
+                       int16_t const ov, int16_t const nv,
                        int const axis)
 {
-	bool const x = (ox != nx);
-	bool const y = (oy != ny);
+	bool const v = (ov != nv);
 
-	if (!x && !y) { return; }
+	if (!v) { return; }
 
-	Input::Event ev(Input::Event::MOTION, axis, x ? nx : ox, y ? ny : oy , 0, 0);
-	input_session.submit(ev);
+	float const fv = convert_s16_to_float(nv);
+
+	Input::Event ev { Input::Axis { (unsigned)axis, fv} };
+	batch.submit(ev);
 }
 
 
-void Utils::check_hat(Input::Session_component &input_session, uint8_t const o, uint8_t const n)
+void Utils::check_hat(Event::Session_client::Batch &batch, uint8_t const o, uint8_t const n)
 {
 	static struct Axis_mapping
 	{
@@ -165,24 +173,24 @@ void Utils::check_hat(Input::Session_component &input_session, uint8_t const o, 
 
 	if (ao.x != an.x) {
 		if (an.x != 0) {
-			Input::Event ev(Input::Event::PRESS, axis_keymap_x[an.x+1], 0, 0, 0, 0);
-			input_session.submit(ev);
+			Input::Event ev(Input::Press { axis_keymap_x[an.x+1] });
+			batch.submit(ev);
 		}
 		if (ao.x != 0) {
-			Input::Event ev(Input::Event::RELEASE, axis_keymap_x[ao.x+1], 0, 0, 0, 0);
-			input_session.submit(ev);
+			Input::Event ev(Input::Release { axis_keymap_x[ao.x+1] });
+			batch.submit(ev);
 		}
 	}
 
 	if (ao.y != an.y) {
 		if (an.y != 0) {
-			Input::Event ev(Input::Event::PRESS, axis_keymap_y[an.y+1], 0, 0, 0, 0);
-			input_session.submit(ev);
+			Input::Event ev(Input::Press { axis_keymap_y[an.y+1] });
+			batch.submit(ev);
 		}
 
 		if (ao.y != 0) {
-			Input::Event ev(Input::Event::RELEASE, axis_keymap_y[ao.y+1], 0, 0, 0, 0);
-			input_session.submit(ev);
+			Input::Event ev(Input::Release { axis_keymap_y[ao.y+1] });
+			batch.submit(ev);
 		}
 	}
 }

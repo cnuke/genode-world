@@ -60,8 +60,8 @@ struct Gravis_gamepadpro : Hid_device
 
 	uint8_t old_data[DATA_LENGTH] = { };
 
-	Gravis_gamepadpro(Input::Session_component &input_session)
-	: Hid_device(input_session, "Gravis Gamepad Pro") { }
+	Gravis_gamepadpro(Event::Session_client &event_session)
+	: Hid_device(event_session, "Gravis Gamepad Pro") { }
 
 	/**************************
 	 ** HID device interface **
@@ -92,17 +92,29 @@ struct Gravis_gamepadpro : Hid_device
 			uint8_t const yn = new_data[1];
 
 			if (xo != xn) {
-				Input::Event ev(
-					xn == 0x7f ? Input::Event::RELEASE : Input::Event::PRESS,
-					(xn & xo) ? Input::Keycode::BTN_RIGHT : Input::Keycode::BTN_LEFT,
-					0, 0, 0, 0);
+				Input::Event ev { };
+
+				if (xn == 0x7f) {
+					ev = Input::Release { (xn & xo) ? Input::Keycode::BTN_RIGHT
+					                                : Input::Keycode::BTN_LEFT };
+				} else {
+					ev = Input::Press { (xn & xo) ? Input::Keycode::BTN_RIGHT
+					                              : Input::Keycode::BTN_LEFT };
+				}
+
 				input_session.submit(ev);
 			}
 			if (yo != yn) {
-				Input::Event ev(
-					yn == 0x7f ? Input::Event::RELEASE : Input::Event::PRESS,
-					(yn & yo) ? Input::Keycode::BTN_BACK : Input::Keycode::BTN_FORWARD,
-					0, 0, 0, 0);
+				Input::Event ev { };
+
+				if (xn == 0x7f) {
+					ev = Input::Release { (yn & yo) ? Input::Keycode::BTN_BACK
+					                                : Input::Keycode::BTN_FORWARD };
+				} else {
+					ev = Input::Press { (yn & yo) ? Input::Keycode::BTN_BACK
+					                              : Input::Keycode::BTN_FORWARD };
+				}
+
 				input_session.submit(ev);
 			}
 		}

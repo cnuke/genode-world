@@ -73,8 +73,8 @@ struct Logitech_precision : Hid_device
 
 	uint8_t last[DATA_LENGTH] = {};
 
-	Logitech_precision(Input::Session_component &input_session)
-	: Hid_device(input_session, "Logitech, Inc. Precision Gamepad")
+	Logitech_precision(Event::Session_client &event_session)
+	: Hid_device(event_session, "Logitech, Inc. Precision Gamepad")
 	{
 		/* initial values */
 		last[X] = ORIGIN;
@@ -127,9 +127,16 @@ struct Logitech_precision : Hid_device
 
 			if (ox == RIGHT_PRESSED) { left = false; }
 
-			Input::Event ev(press ? Input::Event::PRESS : Input::Event::RELEASE,
-			                left  ? Input::Keycode::BTN_LEFT : Input::Keycode::BTN_RIGHT,
-			                0, 0, 0, 0);
+			Input::Event ev { };
+
+			if (press) {
+				ev = Input::Press { left ? Input::Keycode::BTN_LEFT
+				                         : Input::Keycode::BTN_RIGHT };
+			} else {
+				ev = Input::Release { left ? Input::Keycode::BTN_LEFT
+				                           : Input::Keycode::BTN_RIGHT };
+			}
+
 			input_session.submit(ev);
 		}
 
@@ -149,9 +156,16 @@ struct Logitech_precision : Hid_device
 
 			if (oy == DOWN_PRESSED) { up = false; }
 
-			Input::Event ev(press ? Input::Event::PRESS : Input::Event::RELEASE,
-			                up    ? Input::Keycode::BTN_FORWARD : Input::Keycode::BTN_BACK,
-			                0, 0, 0, 0);
+			Input::Event ev { };
+
+			if (press) {
+				ev = Input::Press { up ? Input::Keycode::BTN_FORWARD
+				                         : Input::Keycode::BTN_BACK };
+			} else {
+				ev = Input::Release { up ? Input::Keycode::BTN_FORWARD
+				                           : Input::Keycode::BTN_BACK };
+			}
+
 			input_session.submit(ev);
 		}
 

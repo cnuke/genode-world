@@ -61,10 +61,12 @@ struct Sony_ds3 : Hid_device
 
 		DATA_CMD = 0x20,
 
-		AXIS_XY  = 0,
-		AXIS_ZRZ = 1,
-		AXIS_LT  = 2,
-		AXIS_RT  = 3,
+		AXIS_X  = 0,
+		AXIS_Y  = 1,
+		AXIS_Z  = 2,
+		AXIS_RZ = 3,
+		AXIS_LT = 4,
+		AXIS_RT = 5,
 	};
 
 #if 0
@@ -170,7 +172,8 @@ struct Sony_ds3 : Hid_device
 			int16_t const oyv = Utils::convert_u8_to_s16(oy);
 			int16_t const nyv = Utils::convert_u8_to_s16(ny);
 
-			Utils::check_axis(input_session, oxv, nxv, oyv, nyv, AXIS_XY);
+			Utils::check_axis(input_session, oxv, nxv, AXIS_X);
+			Utils::check_axis(input_session, oyv, nyv, AXIS_Y);
 		}
 
 		if (right_stick_enabled) {
@@ -184,7 +187,8 @@ struct Sony_ds3 : Hid_device
 			int16_t const orzv = Utils::convert_u8_to_s16(orz);
 			int16_t const nrzv = Utils::convert_u8_to_s16(nrz);
 
-			Utils::check_axis(input_session, ozv, nzv, orzv, nrzv, AXIS_ZRZ);
+			Utils::check_axis(input_session, ozv, nzv, AXIS_Z);
+			Utils::check_axis(input_session, orzv, nrzv, AXIS_RZ);
 		}
 
 		/*
@@ -197,7 +201,7 @@ struct Sony_ds3 : Hid_device
 		if (olt != nlt) {
 			int16_t const oltv = Utils::convert_u8_to_s16(olt);
 			int16_t const nltv = Utils::convert_u8_to_s16(nlt);
-			Utils::check_axis(input_session, oltv, nltv, 0, 0, AXIS_LT);
+			Utils::check_axis(input_session, oltv, nltv, AXIS_LT);
 		}
 
 		uint16_t const ort = o->rt;
@@ -205,7 +209,7 @@ struct Sony_ds3 : Hid_device
 		if (ort != nrt) {
 			int16_t const ortv = Utils::convert_u8_to_s16(ort);
 			int16_t const nrtv = Utils::convert_u8_to_s16(nrt);
-			Utils::check_axis(input_session, ortv, nrtv, 0, 0, AXIS_RT);
+			Utils::check_axis(input_session, ortv, nrtv, AXIS_RT);
 		}
 
 		/* check buttons */

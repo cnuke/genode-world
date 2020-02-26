@@ -70,8 +70,8 @@ struct Buffalo_snes : Hid_device
 		return (o == 0x7f && n == 0x80) || (o == 0x80 && n == 0x7f);
 	}
 
-	Buffalo_snes(Input::Session_component &input_session)
-	: Hid_device(input_session, "iBuffalo classic USB gamepad (SNES)")
+	Buffalo_snes(Event::Session_client &event_session)
+	: Hid_device(event_session, "iBuffalo classic USB gamepad (SNES)")
 	{
 		/* initial values */
 		last[X] = ORIGIN;
@@ -106,6 +106,8 @@ struct Buffalo_snes : Hid_device
 
 		if (!changed) { return; }
 
+		_event_session.with_batch([&] (Event::Session_client::Batch &batch) {
+
 		/* x-axis */
 		if (last[X] != new_data[X]) {
 			if (false_positive(last[X], new_data[X])) { return; }
@@ -121,10 +123,17 @@ struct Buffalo_snes : Hid_device
 
 			if (last[X] == RIGHT_PRESSED) { left = false; }
 
-			Input::Event ev(press ? Input::Event::PRESS : Input::Event::RELEASE,
-			                left  ? Input::Keycode::BTN_LEFT : Input::Keycode::BTN_RIGHT,
-			                0, 0, 0, 0);
-			input_session.submit(ev);
+			Input::Event ev { };
+
+			if (press) {
+				ev = Input::Press { left ? Input::Keycode::BTN_LEFT
+				                         : Input::Keycode::BTN_RIGHT };
+			} else {
+				ev = Input::Release { left ? Input::Keycode::BTN_LEFT
+				                           : Input::Keycode::BTN_RIGHT };
+			}
+
+			batch.submit(ev);
 		}
 
 		/* y-axis*/
@@ -142,10 +151,17 @@ struct Buffalo_snes : Hid_device
 
 			if (last[Y] == DOWN_PRESSED) { up = false; }
 
-			Input::Event ev(press ? Input::Event::PRESS : Input::Event::RELEASE,
-			                up    ? Input::Keycode::BTN_FORWARD : Input::Keycode::BTN_BACK,
-			                0, 0, 0, 0);
-			input_session.submit(ev);
+			Input::Event ev { };
+
+			if (press) {
+				ev = Input::Press { up ? Input::Keycode::BTN_FORWARD
+				                         : Input::Keycode::BTN_BACK };
+			} else {
+				ev = Input::Release { up ? Input::Keycode::BTN_FORWARD
+				                           : Input::Keycode::BTN_BACK };
+			}
+
+			batch.submit(ev);
 		}
 
 		if (last[B] != new_data[B]) {
@@ -159,11 +175,18 @@ struct Buffalo_snes : Hid_device
 
 				bool const press = !(prev & idx) && (curr & idx);
 
-				Input::Event ev(press ? Input::Event::PRESS : Input::Event::RELEASE,
-				                button_mapping[i], 0, 0, 0, 0);
-				input_session.submit(ev);
+				Input::Event ev { };
+
+				if (press) {
+					ev = Input::Press { button_mapping[i] };
+				} else {
+					ev = Input::Release { button_mapping[i] };
+				}
+
+				batch.submit(ev);
 			}
 		}
+		});
 
 		/* save for next poll */
 		Genode::memcpy(last, new_data, len);
