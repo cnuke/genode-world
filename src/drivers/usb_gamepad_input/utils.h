@@ -108,8 +108,9 @@ void Utils::check_buttons(Input::Session_component &input_session,
 
 		bool const press = !(prev & idx) && (curr & idx);
 
-		Input::Event ev(press ? Input::Event::PRESS : Input::Event::RELEASE,
-		                mapping[i], 0, 0, 0, 0);
+		Input::Event ev { };
+		if (press) { ev = Input::Press   { mapping[i] }; }
+		else       { ev = Input::Release { mapping[i] }; }
 		input_session.submit(ev);
 	}
 }
@@ -125,7 +126,7 @@ void Utils::check_axis(Input::Session_component &input_session,
 
 	if (!x && !y) { return; }
 
-	Input::Event ev(Input::Event::MOTION, axis, x ? nx : ox, y ? ny : oy , 0, 0);
+	Input::Event ev { Input::Absolute_motion { x ? nx : ox, y ? ny : oy } };
 	input_session.submit(ev);
 }
 
@@ -165,23 +166,23 @@ void Utils::check_hat(Input::Session_component &input_session, uint8_t const o, 
 
 	if (ao.x != an.x) {
 		if (an.x != 0) {
-			Input::Event ev(Input::Event::PRESS, axis_keymap_x[an.x+1], 0, 0, 0, 0);
+			Input::Event ev(Input::Press { axis_keymap_x[an.x+1] });
 			input_session.submit(ev);
 		}
 		if (ao.x != 0) {
-			Input::Event ev(Input::Event::RELEASE, axis_keymap_x[ao.x+1], 0, 0, 0, 0);
+			Input::Event ev(Input::Release { axis_keymap_x[ao.x+1] });
 			input_session.submit(ev);
 		}
 	}
 
 	if (ao.y != an.y) {
 		if (an.y != 0) {
-			Input::Event ev(Input::Event::PRESS, axis_keymap_y[an.y+1], 0, 0, 0, 0);
+			Input::Event ev(Input::Press { axis_keymap_y[an.y+1] });
 			input_session.submit(ev);
 		}
 
 		if (ao.y != 0) {
-			Input::Event ev(Input::Event::RELEASE, axis_keymap_y[ao.y+1], 0, 0, 0, 0);
+			Input::Event ev(Input::Release { axis_keymap_y[ao.y+1] });
 			input_session.submit(ev);
 		}
 	}

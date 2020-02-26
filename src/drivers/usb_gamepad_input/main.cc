@@ -114,7 +114,7 @@ struct Usb::Hid
 	Signal_handler<Hid> state_dispatcher { env.ep(), *this, &Hid::state_change };
 
 	Allocator_avl    usb_alloc;
-	Usb::Connection  usb { env, &usb_alloc, "usb_gamepad", 32*1024, state_dispatcher };
+	Usb::Connection  usb { env, &usb_alloc, "usb_gamepad", 64*1024, state_dispatcher };
 
 	Usb::Config_descriptor    config_descr;
 	Usb::Device_descriptor    device_descr;

@@ -121,9 +121,16 @@ struct Buffalo_snes : Hid_device
 
 			if (last[X] == RIGHT_PRESSED) { left = false; }
 
-			Input::Event ev(press ? Input::Event::PRESS : Input::Event::RELEASE,
-			                left  ? Input::Keycode::BTN_LEFT : Input::Keycode::BTN_RIGHT,
-			                0, 0, 0, 0);
+			Input::Event ev { };
+
+			if (press) {
+				ev = Input::Press { left ? Input::Keycode::BTN_LEFT
+				                         : Input::Keycode::BTN_RIGHT };
+			} else {
+				ev = Input::Release { left ? Input::Keycode::BTN_LEFT
+				                           : Input::Keycode::BTN_RIGHT };
+			}
+
 			input_session.submit(ev);
 		}
 
@@ -142,9 +149,16 @@ struct Buffalo_snes : Hid_device
 
 			if (last[Y] == DOWN_PRESSED) { up = false; }
 
-			Input::Event ev(press ? Input::Event::PRESS : Input::Event::RELEASE,
-			                up    ? Input::Keycode::BTN_FORWARD : Input::Keycode::BTN_BACK,
-			                0, 0, 0, 0);
+			Input::Event ev { };
+
+			if (press) {
+				ev = Input::Press { up ? Input::Keycode::BTN_FORWARD
+				                         : Input::Keycode::BTN_BACK };
+			} else {
+				ev = Input::Release { up ? Input::Keycode::BTN_FORWARD
+				                           : Input::Keycode::BTN_BACK };
+			}
+
 			input_session.submit(ev);
 		}
 
@@ -159,8 +173,14 @@ struct Buffalo_snes : Hid_device
 
 				bool const press = !(prev & idx) && (curr & idx);
 
-				Input::Event ev(press ? Input::Event::PRESS : Input::Event::RELEASE,
-				                button_mapping[i], 0, 0, 0, 0);
+				Input::Event ev { };
+
+				if (press) {
+					ev = Input::Press { button_mapping[i] };
+				} else {
+					ev = Input::Release { button_mapping[i] };
+				}
+
 				input_session.submit(ev);
 			}
 		}
