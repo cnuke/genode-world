@@ -89,13 +89,19 @@ class Lwext4_fs::Node : public Node_base
 			(void) ext4_mtime_get(_name.base(), &mtime);
 			status.modification_time = { mtime };
 
-			unsigned int const v = ext4_inode_get_mode(sb, &_inode) & 0xf000;
-			switch (v) {
+			unsigned int const mode = ext4_inode_get_mode(sb, &_inode);
+		 	unsigned int const type = mode & 0xf000;
+			switch (type) {
 			case EXT4_INODE_MODE_DIRECTORY: status.type = Node_type::DIRECTORY; break;
 			case EXT4_INODE_MODE_SOFTLINK:  status.type = Node_type::SYMLINK;   break;
 			case EXT4_INODE_MODE_FILE:
 			default:                        status.type = Node_type::CONTINUOUS_FILE; break;
 			}
+
+			status.rwx = { .readable   = mode & 0x100,
+			               .writeable  = mode & 0x080,
+			               .executable = mode & 0x040,
+			};
 
 			return status;
 		}
