@@ -51,7 +51,6 @@ build_boot_image {
 	libiconv.lib.so
 	libm.lib.so
 	posix.lib.so
-	pthread.lib.so
 	test-glib
 }
 
