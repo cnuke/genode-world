@@ -1,0 +1,7 @@
+LICENSE   := GPLv2+
+VERSION   := git
+DOWNLOADS := libmbim_generated.git
+
+URL(libmbim_generated) := https://github.com/m-stein/genode_libmbim_generated.git
+REV(libmbim_generated) := 40a63563f8bcd3709056b2dbfeb11eee3763d90d
+DIR(libmbim_generated) := src/lib/libmbim_generated

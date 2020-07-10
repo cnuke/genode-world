@@ -1,14 +1,14 @@
 SHARED_LIB =1
 
-LIBMBIM_PORT_DIR = $(call select_from_ports,libmbim)
-GLIB_PORT_DIR = $(call select_from_ports,glib)
+LIBMBIM_PORT_DIR := $(call select_from_ports,libmbim)
+LIBMBIM_GENERATED_PORT_DIR := $(call select_from_ports,libmbim_generated)
+GLIB_PORT_DIR := $(call select_from_ports,glib)
 
 LIBMBIM_SRC_DIR = $(LIBMBIM_PORT_DIR)/src/lib/libmbim/src
-GLIB_SRC_DIR = $(GLIB_PORT_DIR)/src/lib/glib/glib
-GLIB_SRC_DIR = $(GLIB_PORT_DIR)/src/lib/glib/glib
+LIBMBIM_GENERATED_SRC_DIR = $(LIBMBIM_GENERATED_PORT_DIR)/src/lib/libmbim_generated
+GLIB_SRC_DIR = $(GLIB_PORT_DIR)/src/lib/glib
 
-COMMON_SRC_C := $(notdir $(wildcard $(LIBMBIM_SRC_DIR)/common/*.c))
-
+LIBMBIM_COMMON_SRC_C := $(notdir $(wildcard $(LIBMBIM_SRC_DIR)/common/*.c))
 LIBMBIM_GLIB_SRC_C := $(notdir $(wildcard $(LIBMBIM_SRC_DIR)/libmbim-glib/*.c))
 
 CC_DEF += -DLIBMBIM_GLIB_COMPILATION
@@ -31,9 +31,12 @@ CC_DEF += -DGLIB_SYSDEF_AF_UNIX=1
 CC_DEF += -DGLIB_SYSDEF_AF_INET=1
 CC_DEF += -DLIBEXEC_PATH=
 
-SRC_C += $(COMMON_SRC_C)
+SRC_C += $(LIBMBIM_COMMON_SRC_C)
 SRC_C += $(LIBMBIM_GLIB_SRC_C)
 
+#
+# This should maybe be moved to the libc import file later
+#
 LIBC_PORT_DIR := $(call select_from_ports,libc)
 ifeq ($(filter-out $(SPECS),x86_64),)
 	INC_DIR += $(LIBC_PORT_DIR)/include/spec/x86_64/libc/machine/
@@ -49,12 +52,14 @@ ifeq ($(filter-out $(SPECS),arm),)
 endif
 
 INC_DIR += $(REP_DIR)/src/lib/libmbim
-INC_DIR += $(REP_DIR)/src/lib/libmbim/generated
 INC_DIR += $(GLIB_SRC_DIR)
-INC_DIR += $(GLIB_PORT_DIR)/src/lib/glib
-INC_DIR += $(GLIB_PORT_DIR)/src/lib/glib/gmodule
+INC_DIR += $(GLIB_SRC_DIR)/glib
+INC_DIR += $(GLIB_SRC_DIR)/gmodule
 INC_DIR += $(LIBMBIM_SRC_DIR)/libmbim-glib
 INC_DIR += $(LIBMBIM_SRC_DIR)/common
+INC_DIR += $(LIBMBIM_GENERATED_SRC_DIR)
+INC_DIR += $(LIBMBIM_GENERATED_SRC_DIR)/generated
+
 
 vpath %.c $(LIBMBIM_SRC_DIR)/common
 vpath %.c $(LIBMBIM_SRC_DIR)/libmbim-glib
