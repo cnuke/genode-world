@@ -34,6 +34,7 @@ install_config {
 				<ram/>
 				<dir name="home"> <ram/> </dir>
 				<dir name="var"> <dir name="tmp"> <ram/> </dir> </dir>
+				<dir name="tmp"> <ram/> </dir>
 				<dir name="dev"> <log/> </dir>
 			</vfs>
 			<libc stdout="/dev/log" stderr="/dev/log"/>
