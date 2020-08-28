@@ -47,7 +47,7 @@ install_config {
 					<log/>
 					<inline name="rtc">2020-08-05 00:01</inline>
 					<dir name="pipe"> <pipe/> </dir>
-					<terminal name="cdc-wdm0"/>
+					<terminal name="cdc-wdm0" raw="yes"/>
 				</dir>
 				<ram/>
 			</vfs>
