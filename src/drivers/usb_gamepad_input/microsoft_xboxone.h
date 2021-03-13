@@ -112,8 +112,8 @@ struct Microsoft_xboxone : Hid_device
 		log("rz:        ", Hex(n->rz),        " (", Hex(o->rz),        ")");
 	}
 
-	Microsoft_xboxone(Input::Session_component &input_session)
-	: Hid_device(input_session, "Microsoft Corp. Xbox One Controller") { }
+	Microsoft_xboxone(Event::Session_client &event_session)
+	: Hid_device(event_session, "Microsoft Corp. Xbox One Controller") { }
 
 
 	/**************************
@@ -151,12 +151,15 @@ struct Microsoft_xboxone : Hid_device
 		if (!changed) { return; }
 
 		if (verbose) { dump_state(o, n); }
+
+		event_session.with_batch([&] (Event::Session_client::Batch &batch) {
+
 		/* check analog sticks */
 		if (left_stick_enabled) {
-			Utils::check_axis(input_session, o->x, n->x, o->y, n->y, AXIS_XY);
+			Utils::check_axis(batch, o->x, n->x, o->y, n->y, AXIS_XY);
 		}
 		if (right_stick_enabled) {
-			Utils::check_axis(input_session, o->z, n->z, o->rz, n->rz, AXIS_ZRZ);
+			Utils::check_axis(batch, o->z, n->z, o->rz, n->rz, AXIS_ZRZ);
 		}
 
 		/*
@@ -169,7 +172,7 @@ struct Microsoft_xboxone : Hid_device
 		if (olt != nlt) {
 			int16_t const oltv = Utils::convert_u8_to_s16(olt);
 			int16_t const nltv = Utils::convert_u8_to_s16(nlt);
-			Utils::check_axis(input_session, oltv, nltv, 0, 0, AXIS_LT);
+			Utils::check_axis(batch, oltv, nltv, 0, 0, AXIS_LT);
 		}
 
 		uint16_t const ort = o->rt;
@@ -177,13 +180,15 @@ struct Microsoft_xboxone : Hid_device
 		if (ort != nrt) {
 			int16_t const ortv = Utils::convert_u8_to_s16(ort);
 			int16_t const nrtv = Utils::convert_u8_to_s16(nrt);
-			Utils::check_axis(input_session, ortv, nrtv, 0, 0, AXIS_RT);
+			Utils::check_axis(batch, ortv, nrtv, 0, 0, AXIS_RT);
 		}
 
 		/* check buttons */
 		uint16_t const ob = o->buttons;
 		uint16_t const nb = n->buttons;
-		if (ob != nb) { Utils::check_buttons(input_session, ob, nb, B_NUM, b_mapping); }
+		if (ob != nb) { Utils::check_buttons(batch, ob, nb, B_NUM, b_mapping); }
+
+		});
 
 		/* save for next poll */
 		Genode::memcpy(last, data, len);

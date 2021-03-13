@@ -17,9 +17,7 @@
 #include <base/component.h>
 #include <base/log.h>
 #include <base/heap.h>
-#include <input/component.h>
-#include <input/keycodes.h>
-#include <input_session/connection.h>
+#include <event_session/connection.h>
 #include <os/reporter.h>
 #include <os/static_root.h>
 #include <timer_session/connection.h>
@@ -31,20 +29,20 @@
 #include <hid_device.h>
 
 /* include known gamepads */
-#include <buffalo_snes.h>
-#include <logitech_precision.h>
-#include <microsoft_xbox360.h>
+// #include <buffalo_snes.h>
+// #include <logitech_precision.h>
+// #include <microsoft_xbox360.h>
 #include <microsoft_xboxone.h>
-#include <retrolink_n64.h>
-#include <sony_ds3.h>
-#include <sony_ds4.h>
-#include <gravis_gamepadpro.h>
+// #include <retrolink_n64.h>
+// #include <sony_ds3.h>
+// #include <sony_ds4.h>
+// #include <gravis_gamepadpro.h>
 
 
-static bool const verbose_intr = false;
-static bool const verbose      = false;
+static bool const verbose_intr = true;
+static bool const verbose      = true;
 static bool const debug        = false;
-static bool const dump_dt      = false;
+static bool const dump_dt      = true;
 
 
 namespace Usb {
@@ -65,32 +63,32 @@ namespace Usb {
 struct Usb::Hid
 {
 	Env                      &env;
-	Input::Session_component &input_session;
+	Event::Session_client    &event_session;
 
 	/*
 	 * Supported USB HID gamepads
 	 */
-	Hid_device         generic            { input_session };
-	Buffalo_snes       buffalo_snes       { input_session };
-	Logitech_precision logitech_precision { input_session };
-	Microsoft_xbox360  xbox360            { input_session };
-	Microsoft_xboxone  xboxone            { input_session };
-	Retrolink_n64      retrolink_n64      { input_session };
-	Sony_ds3           sony_ds3           { input_session };
-	Sony_ds4           sony_ds4           { input_session };
-	Gravis_gamepadpro  gravis_gamepadpro  { input_session };
+	Hid_device         generic            { event_session };
+	// Buffalo_snes       buffalo_snes       { event_session };
+	// Logitech_precision logitech_precision { event_session };
+	// Microsoft_xbox360  xbox360            { event_session };
+	Microsoft_xboxone  xboxone            { event_session };
+	// Retrolink_n64      retrolink_n64      { event_session };
+	// Sony_ds3           sony_ds3           { event_session };
+	// Sony_ds4           sony_ds4           { event_session };
+	// Gravis_gamepadpro  gravis_gamepadpro  { event_session };
 
-	enum { MAX_DEVICES = 9, };
+	enum { MAX_DEVICES = 2, };
 	Hid_device *devices[MAX_DEVICES] {
 		&generic,
-		&buffalo_snes,
-		&logitech_precision,
-		&retrolink_n64,
-		&xbox360,
+		// &buffalo_snes,
+		// &logitech_precision,
+		// &retrolink_n64,
+		// &xbox360,
 		&xboxone,
-		&sony_ds3,
-		&sony_ds4,
-		&gravis_gamepadpro
+		// &sony_ds3,
+		// &sony_ds4,
+		// &gravis_gamepadpro
 	};
 
 	Hid_device *device = &generic;
@@ -114,7 +112,7 @@ struct Usb::Hid
 	Signal_handler<Hid> state_dispatcher { env.ep(), *this, &Hid::state_change };
 
 	Allocator_avl    usb_alloc;
-	Usb::Connection  usb { env, &usb_alloc, "usb_gamepad", 64*1024, state_dispatcher };
+	Usb::Connection  usb { env, &usb_alloc, "usb_gamepad", 128*1024, state_dispatcher };
 
 	Usb::Config_descriptor    config_descr;
 	Usb::Device_descriptor    device_descr;
@@ -184,6 +182,8 @@ struct Usb::Hid
 
 	void handle_ctrl(Packet_descriptor &p)
 	{
+		error(__func__, ":", __LINE__);
+
 		uint8_t const * const data = (uint8_t*)usb.source()->packet_content(p);
 		size_t           const len = p.control.actual_size > 0
 		                           ? p.control.actual_size : 0;
@@ -196,12 +196,15 @@ struct Usb::Hid
 			return;
 		}
 
+		error(__func__, ":", __LINE__, " polling_us: ", polling_us);
 		/* kick-off polling */
 		timer.trigger_once(polling_us);
 	}
 
 	void handle_irq_packet(Packet_descriptor &p)
 	{
+		error(__func__, ":", __LINE__);
+
 		if (!p.read_transfer()) { return; }
 
 		uint8_t const * const data = (uint8_t*)usb.source()->packet_content(p);
@@ -289,6 +292,7 @@ struct Usb::Hid
 				return;
 
 			if (!p.succeded) {
+				error("p failed: ", (unsigned)p.type, " error: ", (unsigned)p.error);
 				/*
 				 * We might end up here b/c the generic driver was used and a vendor
 				 * did not fill the queried string index. It is, however, more likely
@@ -317,6 +321,7 @@ struct Usb::Hid
 	{
 		while (usb.source()->ack_avail()) {
 			Usb::Packet_descriptor p = usb.source()->get_acked_packet();
+			error(__func__, ":", __LINE__, " type: ", (unsigned)(unsigned)  p.type);
 			dynamic_cast<Completion *>(p.completion)->complete(*this, p);
 			free_packet(p);
 		}
@@ -357,6 +362,8 @@ struct Usb::Hid
 
 	bool _claim_device()
 	{
+		error(__func__, ":", __LINE__);
+
 		try {
 			usb.config_descriptor(&device_descr, &config_descr);
 			if (verbose) { Utils::Dump::device(device_descr); }
@@ -425,7 +432,8 @@ struct Usb::Hid
 			data[4] = 0x00;
 
 			usb.source()->submit_packet(p);
-		} else if (device == &sony_ds3) {
+			error(__func__, ":", __LINE__);
+		} /* else if (device == &sony_ds3) {
 			log("Enable DS3 quirk");
 
 			enum {
@@ -458,7 +466,7 @@ struct Usb::Hid
 			p.control.timeout      = 1000;
 
 			usb.source()->submit_packet(p);
-		}
+		} */
 
 		/* if we do not know the device, at least query vendor information */
 		if (device == &generic) {
@@ -472,6 +480,7 @@ struct Usb::Hid
 
 	void handle_polling()
 	{
+		error(__func__, ":", __LINE__);
 		Usb::Packet_descriptor p = alloc_packet(ep_descr.max_packet_size);
 
 		p.type                      = Usb::Packet_descriptor::IRQ;
@@ -527,12 +536,14 @@ struct Usb::Hid
 	 * \param alloc  allocator used by Usb::Connection
 	 * \param input  Input session
 	 */
-	Hid(Env &env, Genode::Allocator &alloc, Input::Session_component &input)
-	: env(env), input_session(input), usb_alloc(&alloc)
+	Hid(Env &env, Genode::Allocator &alloc, Event::Connection &event_session)
+	: env(env), event_session(event_session), usb_alloc(&alloc)
 	{
 		usb.tx_channel()->sigh_ack_avail(ack_avail_dispatcher);
 
 		timer.sigh(polling_dispatcher);
+
+		error(__func__, ":", __LINE__);
 
 		/* HID gets initialized by state_change() */
 	}
@@ -544,16 +555,11 @@ struct Usb::Main
 	Env  &env;
 	Heap  heap { env.ram(), env.rm() };
 
-	Input::Session_component    input_session { env, env.pd() };
-	Static_root<Input::Session> input_root { env.ep().manage(input_session) };
+	Event::Connection _event_session { env };
 
-	Usb::Hid hid { env, heap, input_session };
+	Usb::Hid hid { env, heap, _event_session };
 
-	Main(Env &env) : env(env)
-	{
-		input_session.event_queue().enabled(true);
-		env.parent().announce(env.ep().manage(input_root));
-	}
+	Main(Env &env) : env(env) { }
 };
 
 

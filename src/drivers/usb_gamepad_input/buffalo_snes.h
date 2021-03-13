@@ -70,8 +70,8 @@ struct Buffalo_snes : Hid_device
 		return (o == 0x7f && n == 0x80) || (o == 0x80 && n == 0x7f);
 	}
 
-	Buffalo_snes(Input::Session_component &input_session)
-	: Hid_device(input_session, "iBuffalo classic USB gamepad (SNES)")
+	Buffalo_snes(Event::Session_client &event_session)
+	: Hid_device(event_session, "iBuffalo classic USB gamepad (SNES)")
 	{
 		/* initial values */
 		last[X] = ORIGIN;
@@ -106,6 +106,8 @@ struct Buffalo_snes : Hid_device
 
 		if (!changed) { return; }
 
+		_event_session.with_batch([&] (Event::Session_client::Batch &batch) {
+
 		/* x-axis */
 		if (last[X] != new_data[X]) {
 			if (false_positive(last[X], new_data[X])) { return; }
@@ -131,7 +133,7 @@ struct Buffalo_snes : Hid_device
 				                           : Input::Keycode::BTN_RIGHT };
 			}
 
-			input_session.submit(ev);
+			batch.submit(ev);
 		}
 
 		/* y-axis*/
@@ -159,7 +161,7 @@ struct Buffalo_snes : Hid_device
 				                           : Input::Keycode::BTN_BACK };
 			}
 
-			input_session.submit(ev);
+			batch.submit(ev);
 		}
 
 		if (last[B] != new_data[B]) {
@@ -181,9 +183,10 @@ struct Buffalo_snes : Hid_device
 					ev = Input::Release { button_mapping[i] };
 				}
 
-				input_session.submit(ev);
+				batch.submit(ev);
 			}
 		}
+		});
 
 		/* save for next poll */
 		Genode::memcpy(last, new_data, len);

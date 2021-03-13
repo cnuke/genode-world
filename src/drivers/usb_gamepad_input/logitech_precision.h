@@ -73,8 +73,8 @@ struct Logitech_precision : Hid_device
 
 	uint8_t last[DATA_LENGTH] = {};
 
-	Logitech_precision(Input::Session_component &input_session)
-	: Hid_device(input_session, "Logitech, Inc. Precision Gamepad")
+	Logitech_precision(Event::Session_client &event_session)
+	: Hid_device(event_session, "Logitech, Inc. Precision Gamepad")
 	{
 		/* initial values */
 		last[X] = ORIGIN;

@@ -60,8 +60,8 @@ struct Gravis_gamepadpro : Hid_device
 
 	uint8_t old_data[DATA_LENGTH] = { };
 
-	Gravis_gamepadpro(Input::Session_component &input_session)
-	: Hid_device(input_session, "Gravis Gamepad Pro") { }
+	Gravis_gamepadpro(Event::Session_client &event_session)
+	: Hid_device(event_session, "Gravis Gamepad Pro") { }
 
 	/**************************
 	 ** HID device interface **

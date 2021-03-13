@@ -32,13 +32,13 @@ struct Hid_device
 	typedef Genode::String<64> Name;
 	Name name { "<generic USB HID gamepad>" };
 
-	Input::Session_component &input_session;
+	Event::Session_client &event_session;
 
-	Hid_device(Input::Session_component &input_session, Name const &name)
-	: name(name), input_session(input_session) { }
+	Hid_device(Event::Session_client &event_session, Name const &name)
+	: name(name), event_session(event_session) { }
 
-	Hid_device(Input::Session_component &input_session)
-	: input_session(input_session) { }
+	Hid_device(Event::Session_client &event_session)
+	: event_session(event_session) { }
 
 	virtual ~Hid_device() { }
 
