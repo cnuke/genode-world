@@ -1,7 +1,7 @@
 TARGET = test-go
 SRC_GO = main.go
 
-LIBS   = base stdcxx libc libm libgo libgo_support mcontext-support
+LIBS   = base stdcxx libc libm libgo libgo_support
 
 # add place where compiled packages appears
 CUSTOM_GO = /usr/local/genode/tool/19.05/bin/genode-x86-gccgo -B$(BUILD_BASE_DIR)/lib/libgo
