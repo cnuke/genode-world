@@ -15,6 +15,7 @@
 #include <base/debug.h>
 #include <base/log.h>
 #include <libc/args.h>
+#include <libc/allocator.h>
 
 extern "C"
 {
@@ -201,7 +202,7 @@ class Genode::Vm_area
 		typedef Registered<Vm_area_ds> vm_handle;
 
 		Env &_env;
-		Heap &_kheap;
+		Allocator &_kheap;
 		Vm_region_map _rm;
 		Registry<vm_handle> _ds;
 
@@ -210,7 +211,7 @@ class Genode::Vm_area
 		typedef Registered<Vm_range> vm_ranges_handle;
 		Registry<vm_ranges_handle> mapped;
 
-		Vm_area(Env &env, Heap &heap, addr_t base, size_t size)
+		Vm_area(Env &env, Allocator &heap, addr_t base, size_t size)
 		: _env(env), _kheap(heap), _rm(env, heap, size, base)
 		{
 		}
@@ -310,7 +311,7 @@ class Genode::Vm_area_registry
 		typedef Registered<Vm_area> Vm_area_handle;
 
 		Env &_env;
-		Heap &_kheap;
+		Allocator &_kheap;
 		Registry<Vm_area_handle> _registry;
 
 		/* dedicated area to store memory allocated without desired address */
@@ -318,7 +319,7 @@ class Genode::Vm_area_registry
 
 	public :
 
-		Vm_area_registry(Env &env, Heap &heap, size_t size,
+		Vm_area_registry(Env &env, Allocator &heap, size_t size,
 		                 addr_t requested_address = 0)
 	: _env(env), _kheap(heap)
 	{
@@ -535,8 +536,6 @@ void *Genode::pd_get_base_address(void *addr, bool &nanon, size_t &size)
  ** Startup code **
  ******************/
 
-extern Genode::Allocator *kernel_allocator();
-
 namespace Libc {
 
 	void anon_mmap_construct(Genode::Env &env, size_t default_size);
@@ -544,8 +543,9 @@ namespace Libc {
 
 void Libc::anon_mmap_construct(Genode::Env &env, size_t default_size)
 {
+	static Libc::Allocator libc_alloc { };
+
 	/* get Kernel::_heap from Libc */
 	/* and use it as metadata data storage with pre-allocaion */
-	vm_reg.construct(env, reinterpret_cast<Genode::Heap &>(*kernel_allocator()),
-	                 default_size);
+	vm_reg.construct(env, libc_alloc, default_size);
 }
