@@ -138,9 +138,6 @@ static void construct_component(Libc::Env &env)
 	exit(main(genode_argc, genode_argv, genode_envp));
 }
 
-/* libc-internal includes */
-#include <internal/kernel.h>
-#include <internal/init.h>
 
 namespace Libc {
 
@@ -152,8 +149,7 @@ namespace Libc {
 void Libc::Component::construct(Libc::Env &env)
 {
 	// Libc::anon_mmap_construct(env, 15ul * 1024 * 1024);
-	Libc::anon_init_file_operations(env,
-									Libc::Kernel::kernel().libc_env().libc_config());
+	Libc::anon_init_file_operations(env, env.libc_config());
 
 	Libc::with_libc([&]() { construct_component(env); });
 }
