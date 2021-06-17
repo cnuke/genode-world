@@ -5,6 +5,8 @@
 
 #include <native-state-genode.h>
 
+Genode::Env *genode_env;
+
 extern char **environ;
 extern "C" int main(int argc, char **argv, char **envp);
 
@@ -45,6 +47,8 @@ static void component_construct(Libc::Env &env)
 
 void Libc::Component::construct(Libc::Env &env)
 {
+	genode_env = &env;
+
 	Libc::with_libc([&] () { component_construct(env); });
 }
 

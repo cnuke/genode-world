@@ -84,6 +84,9 @@ CC_OPT = -DUSE_EXCEPTIONS -DGLMARK2_USE_GLESv2 -DGLMARK2_USE_EGL \
          -DGLMARK_VERSION='"2021.02"' -DGLMARK_DATA_PATH='"/data"' \
          -D__GENODE__ -D GLMARK2_USE_GENODE
 
+LD_OPT    = --export-dynamic
+
+
 CC_CXX_WARN_STRICT =
 
 vpath %.c   $(GLMARK2_DIR)/src/glad/src
