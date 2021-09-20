@@ -1,0 +1,13 @@
+LICENSE   := GPL2
+VERSION   := 8_00
+DOWNLOADS := yquake2.archive
+
+BASE_URL := https://github.com/yquake2/yquake2/archive/refs/tags
+
+URL(yquake2) := $(BASE_URL)/QUAKE2_$(VERSION).tar.gz
+SHA(yquake2) := 44114a766d0b05f6a5da2cb77e7a6a1c4795118f8d60d521097d2e9728f63348
+DIR(yquake2) := src/app/yquake2
+
+PATCHES := src/app/yquake2/genode-wip.patch
+
+PATCH_OPT := -p1
