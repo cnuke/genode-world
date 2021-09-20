@@ -1,0 +1,102 @@
+--- a/src/app/yquake2/src/backends/unix/main.c	2021-09-23 15:19:00.574405829 +0200
++++ b/src/app/yquake2/src/backends/unix/main.c	2021-09-21 09:49:20.633710299 +0200
+@@ -119,7 +119,7 @@
+ 		printf("you really know what you're doing, edit src/unix/main.c and remove\n");
+ 		printf("this check. But don't complain if Quake II eats your dog afterwards!\n");
+ 
+-		return 1;
++		// return 1;
+ 	}
+ #endif
+ 
+@@ -131,7 +131,7 @@
+ 		printf("what you're doing edit src/unix/main.c and remove this check. Don't\n");
+ 		printf("complain if Quake II eats your dog afterwards!\n");
+ 
+-		return 1;
++		// return 1;
+ 	}
+ 
+ 	// enforce C locale
+--- a/src/app/yquake2/src/backends/unix/network.c	2021-09-23 15:19:00.574405829 +0200
++++ b/src/app/yquake2/src/backends/unix/network.c	2021-09-21 11:24:00.893006979 +0200
+@@ -918,6 +918,7 @@
+ 
+ 		case AF_INET6:
+ 
++#if 0
+ 			/* Multicast outgoing interface is specified for
+ 			   client and server (+set multicast <ifname>) */
+ 			mcast = Cvar_Get("multicast", "NULL", CVAR_NOSET);
+@@ -961,6 +962,7 @@
+ 					}
+ 				}
+ 			}
++#endif
+ 
+ 			break;
+ 	}
+--- a/src/app/yquake2/src/backends/unix/shared/hunk.c	2021-09-23 15:19:00.574405829 +0200
++++ b/src/app/yquake2/src/backends/unix/shared/hunk.c	2021-09-21 09:52:48.489808765 +0200
+@@ -136,7 +136,8 @@
+ 	else if (new_size < old_size)
+ 	{
+ 		/* Hunk is to big, we need to shrink it. */
+-		n = munmap(membase + new_size, old_size - new_size) + membase;
++		// n = munmap(membase + new_size, old_size - new_size) + membase;
++		n = membase;
+ 	}
+ 	else
+ 	{
+--- a/src/app/yquake2/src/client/refresh/soft/sw_main.c	2021-09-23 15:19:00.590413628 +0200
++++ b/src/app/yquake2/src/client/refresh/soft/sw_main.c	2021-09-21 11:23:13.277060271 +0200
+@@ -1921,6 +1921,11 @@
+ 		renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+ 	}
+ 
++	if (!renderer)
++	{
++		renderer = SDL_CreateRenderer(window, -1, 0);
++	}
++
+ 	/* Select the color for drawing. It is set to black here. */
+ 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+ 
+--- a/src/app/yquake2/src/client/vid/glimp_sdl.c	2021-09-23 15:19:00.594415577 +0200
++++ b/src/app/yquake2/src/client/vid/glimp_sdl.c	2021-09-23 15:20:17.753871157 +0200
+@@ -632,6 +632,7 @@
+ void
+ GLimp_GrabInput(qboolean grab)
+ {
++#if 0
+ 	if(window != NULL)
+ 	{
+ 		SDL_SetWindowGrab(window, grab ? SDL_TRUE : SDL_FALSE);
+@@ -642,6 +643,7 @@
+ 		Com_Printf("WARNING: Setting Relative Mousemode failed, reason: %s\n", SDL_GetError());
+ 		Com_Printf("         You should probably update to SDL 2.0.3 or newer!\n");
+ 	}
++#endif
+ }
+ 
+ /*
+--- a/src/app/yquake2/src/common/frame.c
++++ b/src/app/yquake2/src/common/frame.c
+@@ -165,7 +165,7 @@
+ 		}
+ 		else
+ 		{
+-			Sys_Nanosleep(5000);
++			Sys_Nanosleep(1000);
+ 		}
+ #else
+ 		Sys_Nanosleep(850000);
+@@ -331,7 +331,7 @@
+ 	Cvar_Get("version", s, CVAR_SERVERINFO | CVAR_NOSET);
+ 
+ #ifndef DEDICATED_ONLY
+-	busywait = Cvar_Get("busywait", "1", CVAR_ARCHIVE);
++	busywait = Cvar_Get("busywait", "0", CVAR_ARCHIVE);
+ 	cl_async = Cvar_Get("cl_async", "1", CVAR_ARCHIVE);
+ 	cl_timedemo = Cvar_Get("timedemo", "0", 0);
+ 	dedicated = Cvar_Get("dedicated", "0", CVAR_NOSET);
