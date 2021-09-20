@@ -1,0 +1,75 @@
+set build_components {
+	app/yquake2
+	lib/yquake2/game
+	lib/yquake2/ref_soft
+	lib/yquake2/ref_gl1
+	lib/yquake2/ref_gl3
+	lib/mesa/iris
+	lib/mesa/etnaviv
+}
+
+set app_config {
+	<start name="yquake2" caps="1000">
+		<resource name="RAM" quantum="250M"/>
+		<config ld_verbose="yes">
+			<libc stdout="/dev/log" stderr="/dev/log"/>
+			<vfs>
+				<dir name="dev"> <log/> </dir>
+				<dir name="baseq2">
+					<ram/>
+					<rom name="pak0.pak"/>
+					<rom name="pak1.pak"/>
+					<rom name="pak2.pak"/>
+					<rom name="game.so"/>
+				</dir>
+				<rom name="ref_soft.so"/>
+				<rom name="ref_gl1.so"/>
+				<rom name="ref_gl3.so"/>
+			</vfs>
+		</config>
+		<route>
+			<service name="ROM" label="game.so">
+				<parent label="yquake2-game.lib.so"/>
+			</service>
+			<service name="ROM" label="ref_soft.so">
+				<parent label="yquake2-ref_soft.lib.so"/>
+			</service>
+			<service name="ROM" label="ref_gl1.so">
+				<parent label="yquake2-ref_gl1.lib.so"/>
+			</service>
+			<service name="ROM" label="ref_gl3.so">
+				<parent label="yquake2-ref_gl3.lib.so"/>
+			</service>
+			<service name="ROM" label="mesa_gpu_drv.lib.so">
+				<parent label="mesa_gpu-iris.lib.so"/>
+			</service>
+			<service name="Gui">
+				<child name="wm"/>
+			</service>
+			<service name="Gpu">
+				<child name="drivers"/>
+			</service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+}
+
+set boot_modules {
+	libc.lib.so vfs.lib.so libm.lib.so
+	sdl2.lib.so
+	curl.lib.so libcrypto.lib.so libssh.lib.so libssl.lib.so zlib.lib.so
+	yquake2
+	yquake2-game.lib.so
+	yquake2-ref_soft.lib.so
+	yquake2-ref_gl1.lib.so
+	yquake2-ref_gl3.lib.so
+
+	mesa.lib.so egl.lib.so
+	mesa_gpu-iris.lib.so
+	glapi.lib.so expat.lib.so stdcxx.lib.so libdrm.lib.so
+
+	pak0.pak
+}
+	#pak1.pak pak2.pak
+
+source ${genode_dir}/repos/world/run/gui_app.inc
