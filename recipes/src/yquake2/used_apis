@@ -1,0 +1,12 @@
+base
+curl
+framebuffer_session
+gui_session
+input_session
+jpeg
+libc
+libpng
+mesa
+os
+sdl2
+stdcxx

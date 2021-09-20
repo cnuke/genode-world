@@ -1,0 +1,4 @@
+Yamagi Quake II is an enhanced client for id Software's Quake
+II with focus on offline and coop gameplay.
+
+This package contains the port to Genode.
