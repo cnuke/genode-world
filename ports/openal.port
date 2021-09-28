@@ -1,0 +1,34 @@
+LICENSE   := GPLv2
+VERSION   := git
+DOWNLOADS := openal.git
+
+
+URL(openal) := https://github.com/kcat/openal-soft.git
+REV(openal) := 9c136bb3b4e7651cd67c1661c31ac7ed730c4646
+DIR(openal) := src/lib/openal
+
+DIRS := include/AL
+DIR_CONTENT(include/AL) := src/lib/openal/include/AL/*.h
+
+default: $(DOWNLOADS) generated
+
+HRTF     := src/lib/openal/hrtf_default.h
+HRTF_SRC := src/lib/openal/hrtf/Default\ HRTF.mhr
+
+$(call check_tool,gawk)
+$(call check_tool,sed)
+$(call check_tool,od)
+
+# convert binray HRTF.mhr in C-Hex array of the form { 0xab, 0xbc, .. }
+# 1. 'od' dump binrary in one byte hex (x1), sixteen bytes in a row
+# 2. 'awk' removes first column ad uses ',0x' as column separator
+# 3. 'sed' moves first comma of a row to the end so array starts without comma
+generated:
+	@$(MSG_GENERATE)$(notdir $(HRTF));
+	@(echo "const unsigned char hrtf_default[] = {") > $(HRTF)
+	@(od -vt x1 -w16 $(HRTF_SRC) | awk '{$$1=""}1' OFS=" ,0x" | sed 's/,\(.*\)$$/\1,/') >> $(HRTF)
+	@(echo " };"; \
+	  echo "") >> $(HRTF)
+
+# : vi:set ft=make :
+
