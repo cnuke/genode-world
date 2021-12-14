@@ -1,0 +1,16 @@
+if {[get_cmd_switch --autopilot] && [have_board riscv_qemu]} {
+	puts "Autopilot mode is not supported on this platform."
+	exit 0
+}
+
+set mkfs_cmd   [error use mkfs.ntfs or such]
+#set mkfs_cmd   [installed_command mkfs.vfat]
+#set mkfs_opts  "-F32 -nlibc_vfs"
+
+set test_build_components lib/vfs/fusefs-ntfs-3g
+set test_vfs_config "<fusefs-ntfs-3g/>"
+set test_boot_modules fusefs-ntfs-3g.lib.so
+
+set use_vfs_server 1
+
+source ${genode_dir}/repos/libports/run/libc_vfs_filesystem_test.inc

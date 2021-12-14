@@ -1,0 +1,165 @@
+/*
+ * Copyright (C) 2021 Genode Labs GmbH
+ *
+ * This file is part of the Genode OS framework, which is distributed
+ * under the terms of the GNU Affero General Public License version 3.
+ */
+
+
+
+#pragma once
+
+
+#error give up on this -- it works well for reads, but wont handle non-aligned-writes... Use "VfsBlock.." system instead, which handles that for us
+
+
+/* Genode includes */
+#include <base/allocator.h>
+#include <base/allocator_avl.h>
+#include <base/log.h>
+#include <block_session/connection.h>
+
+/* libc includes */
+#include <errno.h>  // EACCESS etc
+
+
+
+
+static void dump( const char * buf, int size )
+{
+	for( int i = 0; i < size; i++ )
+	{
+//		Genode::log( buf[i] );
+	}
+}
+
+
+///ToDo: the Block::Connection API is deprecated (see ticket #193)
+// use eg API used in this instead: os/src/server/part_block/partition_table.h
+
+struct WholeBlock_Read
+{
+	// Fuse-NTFS might request "partial" blocks in pread(), but a Block session
+	// is "all or nothing", it can only read whole blocks (i.e. multiples of
+	// 512 bytes), so delegate block access to this subclass, and the caller
+	// will call memcpy() on a subset of the whole block bytes if needed.
+	WholeBlock_Read(Block::Connection<> & block, int64_t bytecount, int64_t offset)
+	:	_block( block ),
+		_packet(),
+		buffer( nullptr )
+	{
+		Genode::size_t const sector_size = _block.info().block_size;
+		
+		// Calculate the "rounded" bytesize (might differ from bytecount)
+		//
+		Genode::size_t const sector_count = (bytecount + sector_size-1)/sector_size;// * _block.info().block_size;
+		Genode::size_t const bytesize = sector_count * sector_size;
+		
+	//	Genode::log( "    reading ", sector_count, " blocks starting from block #", offset/sector_size );
+
+		//assert(offset);
+		if (offset % sector_size != 0)
+			Genode::error ("offset is not a multiple of sector size ! not implemented !");
+
+		_packet.construct(
+		                           _block.tx()->alloc_packet(bytesize),
+		                           Block::Packet_descriptor::READ,
+		                           offset/sector_size,  // asserted above
+		                           sector_count);
+		_block.tx()->submit_packet(*_packet);
+		*_packet = _block.tx()->get_acked_packet();
+
+		if (_packet->succeeded() && _packet->size() == bytesize) {
+			buffer = _block.tx()->packet_content(*_packet);
+		} else {
+			Genode::error(__func__, " failed at sector ", offset/sector_size, " -- p.size: ", _packet->size());//sector, ", bytecount ", bytecount);
+		}
+	}
+	
+	~WholeBlock_Read()
+	{
+		_block.tx()->release_packet(*_packet);
+	}
+
+	// in
+	Block::Connection<> & _block;
+
+	// out
+	Genode::Constructible<Block::Packet_descriptor>  _packet;
+	const char * buffer;
+};
+
+struct Blockdev
+{
+	Genode::Env           &_env;
+	Genode::Allocator     &_alloc;
+	Genode::Allocator_avl  _tx_alloc { &_alloc };
+
+	Block::Connection<>        _block { _env, &_tx_alloc, 512*1024 };
+	Block::Session::Info const _info  { _block.info() };
+
+	Blockdev(Genode::Env &env, Genode::Allocator &alloc)
+	: _env(env), _alloc(alloc) { }
+
+	int pwrite(const void * buf, uint64_t bytesize, int64_t byteoffset)
+	{
+		if (!_block.info().writeable) { return 0; }
+
+		Genode::size_t const sector_size = _block.info().block_size;
+
+		//assert(writing exactly whole blocks);
+			//otherwise let's leave it to the CALLER to de-derp...
+		if (byteoffset % sector_size != 0)
+			Genode::error ("pwrite: offset is not a multiple of sector size ! not implemented !");
+		if (bytesize % sector_size != 0)
+			Genode::error ("pwrite: count is not a multiple of sector size ! not implemented !");
+
+		Block::Packet_descriptor p(_block.tx()->alloc_packet(bytesize),
+		                           Block::Packet_descriptor::WRITE,
+		                           byteoffset/sector_size,  // asserted above
+		                           bytesize/sector_size);
+		_block.tx()->submit_packet(p);
+		p = _block.tx()->get_acked_packet();
+
+		if (p.succeeded() && p.size() == bytesize) {
+			//result = EOK;
+		} else {
+			Genode::error(__func__, " failed at sector ", byteoffset/sector_size, " -- p.size: ", p.size());
+		}
+
+		_block.tx()->release_packet(p);
+
+		return bytesize;
+	}
+	
+	int pread(void * buf, int64_t count, int64_t offset)
+	{
+		//Genode::log( "    reading ", count, " bytes at byte-offset: ", offset );
+		
+		int result = 0;  // default to failure (zero bytes read)
+#if 0
+		if (p.succeeded() && p.size() == bytesize) {
+			char const * const content = _block.tx()->packet_content(p);
+			dump(content, bytesize);
+			Genode::memcpy(buf, content, bytesize);
+			result = bytesize;//0;//EOK;
+		} else {
+			Genode::error(__func__, " failed at sector ", offset/sector_size, " -- p.size: ", p.size());//sector, ", count ", count);
+			//Genode::error("could not read lba: ", lba, " count: ", count);
+		}
+#else
+		WholeBlock_Read whole( _block, count, offset );
+		if (whole.buffer) {
+			dump(whole.buffer, count);
+			Genode::memcpy(buf, whole.buffer, count);  // count is inferior or equal to packet.size()
+			return count;
+		} else {
+			//return 0;
+		}
+#endif
+
+		return result;
+	}
+};
+
+

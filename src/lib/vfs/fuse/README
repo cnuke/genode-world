@@ -1,0 +1,62 @@
+The fuse vfs plug-in provides access to a FUSE based file system. Like other
+vfs plug-ins, it may be either located directly in the client application, or
+within a file-system server.
+
+The plug-in implementation is independent from each
+FUSE based file system. fuse vfs only calls the FUSE operation in question
+directly. These operations are provided by the FUSE file system and Genode's
+libfuse library makes sure, that each operation is executable, e.g. by using
+a dummy function in case it is not provided by the FUSE file system.
+Therefore, to utilize a FUSE file system, the FUSE file system is linked
+against libfuse as well as vfs_fuse. For each fuse vfs plug-in there is
+a binary (.e.g. 'world/src/lib/vfs/fuse/ext2').
+
+Note: write-support is supported but considered to be experimantal at this
+point and for now using it is NOT recommended.
+
+To use the ext2_fuse plug-in the following config snippet may be used:
+
+!  <start name="fs">
+!  	<resource name="RAM" quantum="8M"/> XXX
+!  	<config>
+!  		<policy label_prefix="noux -> fuse" root="/" writeable="no" />  XXXX
+!  		<vfs>
+!  			<dir name="dev">
+!  				<block name="sda1"/>  <!-- handles block session to real block device -->
+!  			</dir>
+!  			<dir name="fs">
+!  				<fuse-ext2fs block_path="/dev/sda1"/>
+!  			</dir>
+!  		</vfs>
+!  	</config>
+!  </start>
+
+
+xxx///FIXME: we don't provide a setting to toggle r/o or r/w policy, unlike the previous implementation.. Should we?
+
+This is a work-in-progress; among the tech debt that is still to be repaid to
+bring it up to Genode standards, one should mention:
+
+TODO:
+- rename plug-in from "fuse" to "fuse-ntfs-3g" etc
+- add support for ext2fs and exfat (in theory this should be straightfoward,
+	using as guidelines the diffs that enabled ntfs-3g support)
+- stub out the remainder of LibC (the one that can be left out when running in
+	a libc-using host, but will be required when running in an fs server)
+
+
+Additionally, during the course of migrating FUSE from a server to a vfs plug-in,
+some ideas came up to make the test-suite even more robust:
+
+TODO: test suite:
+- add opendir tests
+- add stat() tests after each mkdir()/rmdir() tests, to check for functions that return OK even though they didn't perform their task.
+- repeatedly open()/close(), for ca. 256+10 time, to check for fd leaks (i.e. if the plug-in fails to release() file descriptors)
+
+
+
+How to build:
+(/// Remove this, build instructions are not generally provided in READMEs):
+- make -C build/x86_64  KERNEL=nova  BOARD=pc    LIB=vfs_fuse
+- make -C build/x86_64  KERNEL=nova  BOARD=pc    run/libc_vfs_ntfs-3g_fuse_fs
+
