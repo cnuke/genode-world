@@ -42,7 +42,7 @@ char volname[]   = "ext2_volume";
 }
 
 
-bool Fuse::init_fs(void)
+bool Fuse::init_fs()
 {
 	Genode::log("libc_fuse_ext2: try to mount /dev/blkdev...");
 
