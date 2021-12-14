@@ -84,7 +84,7 @@ namespace Fuse {
 	 * using a Block_session connection, and call the file system
 	 * init function as well as initialize needed fuse structures.
 	 */
-	bool init_fs();
+	bool init_fs(char const *devicepath);
 
 	/**
 	 * Deinitialize the file system

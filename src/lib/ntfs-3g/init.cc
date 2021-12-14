@@ -39,10 +39,12 @@ extern void ntfs_close(void);
 }
 
 
-bool Fuse::init_fs(void)
+bool Fuse::init_fs(char const *devicepath)
 {
 	ntfs_set_locale();
 	ntfs_log_set_handler(ntfs_log_handler_stderr);
+ntfs_log_set_handler(ntfs_log_handler_fprintf);//or "handler_void"..
+//ntfs_log_set_levels(4095);//NTFS_LOG_LEVEL_DEBUG);  // all-in-one logging level/tracing/debugging
 
 	ntfs_fuse_context_t **ctx = ntfs_fuse_ctx();
 
@@ -69,17 +71,17 @@ bool Fuse::init_fs(void)
 	};
 	*/
 
-	Genode::log("libc_fuse_ntfs-3g: try to mount /dev/blkdev...");
+	Genode::log("libc_fuse_ntfs-3g: try to mount ", devicepath, " ...");
 
-	int err = ntfs_open("/dev/blkdev");
+	int err = ntfs_open(devicepath);  // e.g. "/dev/blkdev"
 	if (err) {
-		Genode::error("libc_fuse_ntfs-3g: could not mount /dev/blkdev");
+		Genode::error("libc_fuse_ntfs-3g: could not mount ", devicepath);
 		return false;
 	}
 
 	fh = fuse_new(fc, NULL, &ntfs_3g_ops, sizeof (ntfs_3g_ops), NULL);
 	if (fh == 0) {
-		Genode::error("libc_fuse_exfat: fuse_new() failed");
+		Genode::error("libc_fuse_ntfs-3g: fuse_new() failed");
 		ntfs_close();
 		return false;
 	}
@@ -92,7 +94,7 @@ bool Fuse::init_fs(void)
 
 void Fuse::deinit_fs(void)
 {
-	Genode::log("libc_fuse_ntfs-3g: unmount /dev/blkdev...");
+	Genode::log("libc_fuse_ntfs-3g: unmount blockdev file...");
 	ntfs_close();
 
 	free(*ntfs_fuse_ctx());

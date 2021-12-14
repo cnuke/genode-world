@@ -28,7 +28,7 @@ static struct fuse         *_fuse;
 static struct fuse_context  _ctx;
 
 #if 1
-#define TRACE Genode::log("")
+#define TRACE Genode::log(__func__);
 #else
 #define TRACE
 #endif

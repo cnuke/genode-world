@@ -1,7 +1,30 @@
-set build_component server/fuse_fs/ntfs-3g
-set binary          ntfs-3g_fuse_fs
-set mkfs_cmd        mkfs.ntfs
-set mkfs_opts       ""
-set vfs_dev_blkdev  {<block name="blkdev"/>}
 
-source ${genode_dir}/repos/libports/run/libc_vfs_fs_test.inc
+#///FIXME: the below mkfs params are adapted to Haiku, RESTORE LINUX COMMAND LINE before submitting an actual commit to Genode !
+
+set mkfs_cmd        "mkfs"
+#mkfs.ntfs
+set mkfs_opts       " --dont-ask  -t ntfs "
+#Haiku needs a "Data" volume name ? Can't do it here, set it in ".inc" file instead
+
+# delete this, only used in "libc_vfs_fs_test.inc" but not for us in "libc_vfs_filesystem_test.inc":
+#_d_set vfs_dev_blkdev  {<block name="blkdev"/>}
+
+#///FIXME: rename to "fuse-ntfs-3g"! :++++ :
+#set test_build_components lib/vfs/fusefs-ntfs-3g
+#set test_vfs_config "<fuse-ntfs-3g block_path=\"/dev/sda1\"/>"
+#set test_boot_modules vfs_fuse-ntfs-3g.lib.so
+## and delete this:---- :
+set test_build_components lib/vfs/vfs_fuse__xx_not_used_it_seems_xx
+#set test_vfs_config  "<fuse block_path=\"/dev/sda1\"/>"
+set test_vfs_config  "<block name=\"blockdev\"/><fuse block_path=\"/blockdev\"/>"
+set test_boot_modules vfs_fuse.lib.so
+
+# ///ToDo: extend 'fake LibC' support, so that the plug-in can live inside a _vfs_server_ ;
+# for now it piggy-backs on the host component for LibC symbols like "stdout" :-/ and that precludes
+# being hosted in a vfs server (which does not link against libc, unlike "test-libc_vfs") as that results in:
+#   [init -> vfs] Warning: LD: symbol not found: '__stdoutp'
+#   [init -> vfs] Error: failed to create <fuse> VFS node
+set use_vfs_server 0
+
+source ${genode_dir}/repos/libports/run/libc_vfs_filesystem_test.inc
+# _d_: libc_vfs_fs_test.inc
