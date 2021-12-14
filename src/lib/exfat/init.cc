@@ -25,16 +25,16 @@ extern struct fuse_operations fuse_exfat_ops;
 struct fuse_chan *fc;
 struct fuse      *fh;
 
-struct exfat ef;
+struct exfat _ef;
 
 }
 
 
-bool Fuse::init_fs(void)
+bool Fuse::init_fs(char const *devicepath)
 {
 	Genode::log("libc_fuse_exfat: try to mount /dev/blkdev...");
 
-	int err = exfat_mount(&ef, "/dev/blkdev", "");
+	int err = exfat_mount(&_ef, devicepath, "");
 	if (err) {
 		Genode::error("libc_fuse_exfat: could not mount /dev/blkdev");
 		return false;
@@ -53,7 +53,7 @@ bool Fuse::init_fs(void)
 void Fuse::deinit_fs(void)
 {
 	Genode::log("libc_fuse_exfat: umount /dev/blkdev...");
-	exfat_unmount(&ef);
+	exfat_unmount(&_ef);
 }
 
 

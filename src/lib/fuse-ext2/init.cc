@@ -42,11 +42,11 @@ char volname[]   = "ext2_volume";
 }
 
 
-bool Fuse::init_fs(void)
+bool Fuse::init_fs(char const *devicepath)
 {
 	Genode::log("libc_fuse_ext2: try to mount /dev/blkdev...");
 
-	int err = ext2fs_open("/dev/blkdev",  EXT2_FLAG_RW, 0, 0, unix_io_manager, &e2fs);
+	int err = ext2fs_open(devicepath,  EXT2_FLAG_RW, 0, 0, unix_io_manager, &e2fs);
 	if (err) {
 		Genode::error("libc_fuse_ext2: could not mount /dev/blkdev, error: ", err);
 		return false;
