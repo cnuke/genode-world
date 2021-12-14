@@ -3,5 +3,10 @@ set binary          ext2_fuse_fs
 set mkfs_cmd        mkfs.ext2
 set mkfs_opts       "-F"
 set vfs_dev_blkdev  {<block name="blkdev"/>}
+set use_vfs_block 1
+
+append build_components {
+	test/libc
+}
 
 source ${genode_dir}/repos/libports/run/libc_vfs_fs_test.inc
