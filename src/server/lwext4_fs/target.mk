@@ -1,5 +1,5 @@
 TARGET   = lwext4_fs
-SRC_CC   = main.cc file_system.cc
+SRC_CC   = main.cc file_system.cc block.cc
 LIBS     = base lwext4
 
 INC_DIR += $(PRG_DIR)
