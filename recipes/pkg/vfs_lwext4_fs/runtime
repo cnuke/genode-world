@@ -1,0 +1,27 @@
+<runtime ram="48M" caps="200" binary="vfs">
+
+	<requires> <block/> <rm/> </requires>
+
+	<provides> <file_system/> </provides>
+
+	<config>
+		<default-policy root="/" writeable="yes"/>
+		<vfs>
+			<dir name="dev">
+				<block block_buffer_count="128"/>
+			</dir>
+			<lwext4 block_device="/dev/block"
+			        expand_via_io="yes"
+			        cache_write_back="yes"
+			        writeable="yes"
+			        external_cache_size="32M"/>
+		</vfs>
+	</config>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="vfs"/>
+		<rom label="vfs.lib.so"/>
+		<rom label="vfs_lwext4.lib.so"/>
+	</content>
+</runtime>
