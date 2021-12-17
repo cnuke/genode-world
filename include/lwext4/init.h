@@ -22,15 +22,11 @@ namespace Genode {
 	struct Allocator;
 }
 
-struct ext4_blockdev;
-
 namespace Lwext4 {
 
-	struct Block_init_failed  : Genode::Exception { };
 	struct Malloc_init_failed : Genode::Exception { };
 
 	void malloc_init(Genode::Env &, Genode::Allocator &heap);
-	struct ext4_blockdev *block_init(Genode::Env &, Genode::Allocator &heap);
 }
 
 #endif /* _INCLUDE__LWEXT4_INIT_H_ */

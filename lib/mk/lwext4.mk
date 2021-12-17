@@ -7,7 +7,7 @@ SRC_C += $(notdir $(wildcard $(LWEXT4_DIR)/blockdev/*.c))
 # from musl
 SRC_C += qsort.c
 
-SRC_CC := block libc.cc
+SRC_CC := libc.cc
 
 INC_DIR += $(LWEXT4_PORT_DIR)/include
 INC_DIR += $(LWEXT4_DIR)/blockdev
