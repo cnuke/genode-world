@@ -36,6 +36,8 @@ namespace Lwext4_fs {
 	using File_system::Packet_descriptor;
 	using File_system::Path;
 
+	struct ext4_blockdev *block_init(Genode::Env &, Genode::Allocator &);
+
 	struct Main;
 	struct Root;
 	struct Session_component;
@@ -676,7 +678,7 @@ struct Lwext4_fs::Main
 	{
 		Lwext4::malloc_init(_env, _heap);
 
-		ext4_blockdev *bd = Lwext4::block_init(_env, _heap);
+		ext4_blockdev *bd = Lwext4_fs::block_init(_env, _heap);
 		File_system::init(bd);
 
 		env.parent().announce(env.ep().manage(fs_root));

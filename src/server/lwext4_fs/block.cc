@@ -132,15 +132,20 @@ static int blockdev_bwrite(struct ext4_blockdev *bdev,
 /*
  * Genode enviroment
  */
-static Genode::Env                     *_global_env;
-static Genode::Allocator               *_global_alloc;
-static Genode::Constructible<Blockdev>  _blockdev;
+namespace Lwext4_fs {
+	struct ext4_blockdev *block_init(Genode::Env &, Genode::Allocator &);
+};
 
-
-struct ext4_blockdev *Lwext4::block_init(Genode::Env &env, Genode::Allocator &alloc)
+struct ext4_blockdev *Lwext4_fs::block_init(Genode::Env &env, Genode::Allocator &alloc)
 {
-	_global_env   = &env;
-	_global_alloc = &alloc;
+	static Genode::Constructible<Blockdev>  _blockdev { };
+
+	if (_blockdev.constructed()) {
+		Genode::error("calling ", __func__, " multiple times not supported");
+		return nullptr;
+	}
+
+	struct Block_init_failed : Genode::Exception { };
 
 	try         { _blockdev.construct(env, alloc); }
 	catch (...) { throw Block_init_failed(); }
