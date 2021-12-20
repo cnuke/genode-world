@@ -66,6 +66,11 @@ class Lwext4_fs::Directory : public Node
 			_open(name, create);
 		}
 
+		~Directory()
+		{
+			ext4_dir_close(&_dir);
+		}
+
 		size_t read(char *dest, size_t len, seek_off_t seek_offset)
 		{
 			if (len < sizeof(Directory_entry)) {
