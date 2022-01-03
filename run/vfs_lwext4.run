@@ -1,0 +1,115 @@
+assert_spec linux
+
+#
+# Check used commands
+#
+set mke4fs [installed_command mkfs.ext4]
+set dd     [installed_command dd]
+
+#
+# Build
+#
+set build_components {
+	core init
+	timer
+	server/lx_block
+	server/report_rom
+	server/vfs
+	lib/vfs/lwext4
+	test/libc_vfs
+}
+
+build $build_components
+
+#
+# Build Ext4-file-system image
+#
+set image_size 16
+catch { exec $dd if=/dev/zero of=bin/ext4.raw bs=1M seek=$image_size count=0 }
+catch { exec $mke4fs -F bin/ext4.raw }
+
+create_boot_directory
+
+#
+# Generate config
+#
+append config {
+<config>
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+	<default caps="100"/>
+
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="linux_rtc_drv" ld="no">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Rtc"/></provides>
+	</start>
+
+	<start name="lx_block" ld="no">
+		<resource name="RAM" quantum="1G"/>
+		<provides><service name="Block"/></provides>
+		<config file="ext4.raw" block_size="512" writeable="yes"/>
+	</start>
+
+	<start name="vfs_lwext4_fs">
+		<binary name="vfs"/>
+		<resource name="RAM" quantum="4M" />
+		<provides><service name="File_system"/></provides>
+		<config ld_verbose="yes">
+			<vfs>
+				<dir name="dev">
+					<block name="hdd" block_buffer_count="128"/>
+				</dir>
+				<lwext4 block_device="/dev/hdd" cache_write_back="yes"
+				        expand_via_io="yes" writeable="yes"/>
+			</vfs>
+			<policy label_prefix="test-libc_vfs" root="/" writeable="yes"/>
+		</config>
+	</start>
+
+	<start name="test-libc_vfs">
+		<resource name="RAM" quantum="4M"/>
+		<config>
+			<large seek="yes"/>
+			<vfs>
+				<dir name="dev"> <log/> <rtc/> </dir>
+				<fs/>
+			</vfs>
+			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc"/>
+		</config>
+	</start>
+</config>}
+
+install_config $config
+
+#
+# Boot modules
+#
+
+# generic modules
+set boot_modules {
+	core ld.lib.so init timer report_rom lx_block linux_rtc_drv
+	vfs_lwext4.lib.so ext4.raw libc.lib.so test-libc_vfs vfs.lib.so
+	vfs
+}
+
+build_boot_image $boot_modules
+
+run_genode_until {.*child "test-libc_vfs" exited with exit value 0.*} 30
+
+#exec rm -f bin/ext4.raw
