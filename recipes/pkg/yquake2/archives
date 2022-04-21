@@ -1,4 +1,5 @@
 cnuke/raw/quake2-demo-pak/21.10
+_/src/black_hole
 _/src/curl
 _/src/expat
 _/src/init
@@ -12,6 +13,7 @@ _/src/openssl
 _/src/sdl2
 _/src/stdcxx
 _/src/vfs
+_/src/vfs_gpu
 _/src/vfs_oss
 _/src/yquake2
 _/src/zlib
