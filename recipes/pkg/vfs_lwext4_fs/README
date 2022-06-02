@@ -1,0 +1,6 @@
+
+   Ext2/3/4 file system server using the lwext4 VFS plugin
+
+
+The default configuration allows read-write access to the file system for
+any client.
