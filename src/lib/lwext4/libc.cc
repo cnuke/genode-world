@@ -87,10 +87,39 @@ int puts(const char *s)
  ** stdlib.h **
  **************/
 
+uint64_t __mem_allocs = 0;
+uint64_t __mem_frees  = 0;
+uint64_t __mem_alloc  = 0;
+uint64_t __mem_free   = 0;
+
+struct From
+{
+	void     *value;
+	uint64_t  count;
+};
+
+struct Alloc_from
+{
+	From from[1024];
+};
+
+static bool inhibt_bt;
+
 void *malloc(size_t sz)
 {
-	void *addr = _global_alloc->alloc(sz);
-	return addr;
+	size_t *addr =
+		reinterpret_cast<size_t*>(_global_alloc->alloc(sz + sizeof(size_t)));
+	if (!addr)
+		return nullptr;
+
+	if (!inhibt_bt) {
+	}
+
+	++__mem_allocs;
+	__mem_alloc += sz;
+
+	*addr = sz;
+	return (void*)++addr;
 }
 
 
@@ -98,7 +127,9 @@ void *calloc(size_t n, size_t sz)
 {
 	/* XXX overflow check */
 	size_t size = n * sz;
+	inhibt_bt = true;
 	void *p = malloc(size);
+	inhibt_bt = false;
 	if (p) { Genode::memset(p, 0, size); }
 	return p;
 }
@@ -115,7 +146,14 @@ void free(void *p)
 {
 	if (p == NULL) { return; }
 
-	_global_alloc->free(p, 0);
+	size_t *v = reinterpret_cast<size_t*>(p);
+	size_t *addr = --v;
+	size_t sz    = *addr;
+
+	++__mem_frees;
+	__mem_free += sz;
+
+	_global_alloc->free(addr, sz);
 }
 
 

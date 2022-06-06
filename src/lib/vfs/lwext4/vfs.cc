@@ -37,6 +37,12 @@ namespace Vfs {
 };
 
 
+extern uint64_t __mem_allocs;
+extern uint64_t __mem_frees;
+extern uint64_t __mem_alloc;
+extern uint64_t __mem_free;
+
+
 class Vfs::Lwext4_vfs_file_system : public Vfs::File_system
 {
 	private:
@@ -494,6 +500,16 @@ class Vfs::Lwext4_vfs_file_system : public Vfs::File_system
 						xml.attribute("total",  stats.inodes_count);
 						xml.attribute("avail", stats.free_inodes_count);
 					});
+
+					xml.node("memory", [&] () {
+						xml.attribute("allocs", __mem_allocs);
+						xml.attribute("frees",  __mem_frees);
+						xml.attribute("sdiff",  __mem_allocs - __mem_frees);
+						xml.attribute("alloc",  __mem_alloc);
+						xml.attribute("free",   __mem_free);
+						xml.attribute("diff",   __mem_alloc - __mem_free);
+					});
+
 
 					if (report_cache)
 						Lwext4::block_cache_stats(_block_device, xml);
