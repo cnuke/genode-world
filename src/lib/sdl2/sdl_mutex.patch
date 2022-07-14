@@ -1,0 +1,76 @@
+When FAKE_RECURSIVE_MUTEX is turned on on Genode because our pthred_mutex*
+implementation is not resursive. On SDL_CondWait a phtread_mutex is handed in
+locked state and is unlocked in pthread_cond_wait and locked at the end of this
+function. If in meantime another thread uses the same SDL mutex and frees it,
+the SDL owner will be set to 0. At the end of SDL_CondWait we therefore need to
+set the owner in case it is null since we know we own the phtread_mutex.
+diff --git a/src/thread/pthread/SDL_syscond.c b/src/thread/pthread/SDL_syscond.c
+index 28cf819..593a77d 100644
+--- a/src/thread/pthread/SDL_syscond.c
++++ b/src/thread/pthread/SDL_syscond.c
+@@ -98,7 +98,7 @@ SDL_CondBroadcast(SDL_cond * cond)
+ int
+ SDL_CondWaitTimeout(SDL_cond * cond, SDL_mutex * mutex, Uint32 ms)
+ {
+-    int retval;
++    int retval, recursive;
+ #ifndef HAVE_CLOCK_GETTIME
+     struct timeval delta;
+ #endif
+@@ -125,7 +125,10 @@ SDL_CondWaitTimeout(SDL_cond * cond, SDL_mutex * mutex, Uint32 ms)
+     }
+ 
+   tryagain:
+-    retval = pthread_cond_timedwait(&cond->cond, &mutex->id, &abstime);
++    retval    = pthread_cond_timedwait(&cond->cond, &mutex->id, &abstime);
++    /* mutex->id is locked after 'pthread_cond_wait', set owner */
++    recursive = SDL_LockMutexOwnerRescursive(mutex);
++    if (recursive) return recursive;
+     switch (retval) {
+     case EINTR:
+         goto tryagain;
+@@ -152,7 +155,9 @@ SDL_CondWait(SDL_cond * cond, SDL_mutex * mutex)
+     } else if (pthread_cond_wait(&cond->cond, &mutex->id) != 0) {
+         return SDL_SetError("pthread_cond_wait() failed");
+     }
+-    return 0;
++
++    /* mutex->id is locked after 'pthread_cond_wait', set owner */
++    return SDL_LockMutexOwnerRescursive(mutex);
+ }
+ 
+ /* vi: set ts=4 sw=4 expandtab: */
+diff --git a/src/thread/pthread/SDL_sysmutex.c b/src/thread/pthread/SDL_sysmutex.c
+index b4ebcc6..9de9562 100644
+--- a/src/thread/pthread/SDL_sysmutex.c
++++ b/src/thread/pthread/SDL_sysmutex.c
+@@ -192,4 +192,17 @@ SDL_UnlockMutex(SDL_mutex * mutex)
+     return 0;
+ }
+ 
++int
++SDL_LockMutexOwnerRescursive(SDL_mutex *mutex)
++{
++#if FAKE_RECURSIVE_MUTEX
++    pthread_t this_thread = pthread_self();
++
++    if (mutex->owner != 0 && mutex->owner != this_thread) {
++        return SDL_SetError("SDL_LockMutexOwnerRescursive owner != 0 and owner != self");
++    }
++    mutex->owner = this_thread;
++#endif
++    return 0;
++}
+ /* vi: set ts=4 sw=4 expandtab: */
+diff --git a/src/thread/pthread/SDL_sysmutex_c.h b/src/thread/pthread/SDL_sysmutex_c.h
+index 8c38367..51d4346 100644
+--- a/src/thread/pthread/SDL_sysmutex_c.h
++++ b/src/thread/pthread/SDL_sysmutex_c.h
+@@ -28,5 +28,7 @@ struct SDL_mutex
+     pthread_mutex_t id;
+ };
+ 
++int SDL_LockMutexOwnerRescursive(SDL_mutex *mutex);
++
+ #endif /* SDL_mutex_c_h_ */
+ /* vi: set ts=4 sw=4 expandtab: */

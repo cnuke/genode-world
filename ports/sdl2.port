@@ -8,7 +8,7 @@ SIG(sdl2) := ${URL(sdl2)}.sig
 KEY(sdl2) := 1528635D8053A57F77D1E08630A59377A7763BE6
 DIR(sdl2) := src/lib/sdl2
 
-PATCHES   := src/lib/sdl2/backends.patch
+PATCHES   := src/lib/sdl2/backends.patch src/lib/sdl2/sdl_mutex.patch
 PATCH_OPT := -p1 -d src/lib/sdl2
 
 # wipe original 'SDL_config.h' file because it conflicts with our version
