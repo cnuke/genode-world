@@ -17,16 +17,14 @@ MIRROR_FROM_REP_DIR += \
 	lib/import/import-opusfile.mk \
 	lib/mk/opusfile.mk
 
-
 content: $(MIRROR_FROM_PORT_AND_REP_DIR) $(MIRROR_FROM_REP_DIR) LICENSE \
-         src/lib/opusfile/target.mk remove-git
+         src/lib/opusfile remove-git
 
-src/lib/opusfile/target.mk:
+src/lib/opusfile:
 	mkdir -p include
 	cp $(OPUSFILE_PORT_DIR)/include/opusfile/opusfile.h include
 	mkdir -p src/lib/opusfile
 	cp -a $(OPUSFILE_PORT_DIR)/src/lib/opusfile src/lib
-	echo "LIBS := opusfile" > $@
 
 remove-git: $(MIRROR_FROM_PORT_DIR)
 	@for dir in .git; do \

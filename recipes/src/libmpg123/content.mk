@@ -12,12 +12,11 @@ $(MIRROR_FROM_REP_DIR):
 
 PORT_DIR := $(call port_dir,$(REP_DIR)/ports/mpg123)
 
-content: src/lib/mpg123/target.mk LICENSE
+content: src/lib/mpg123 LICENSE
 
-src/lib/mpg123/target.mk:
+src/lib/mpg123:
 	mkdir -p src/lib/mpg123
 	cp -r $(PORT_DIR)/src/lib/mpg123/* src/lib/mpg123
-	echo "LIBS = libmpg123" > $@
 
 LICENSE:
 	cp $(PORT_DIR)/src/lib/mpg123/COPYING $@

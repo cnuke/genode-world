@@ -6,17 +6,16 @@ MIRROR_FROM_REP_DIR = \
 	lib/import/import-libsndfile.mk \
 	src/lib/libsndfile/config.h \
 
-content: $(MIRROR_FROM_REP_DIR) src/lib/libsndfile/target.mk LICENSE
+content: $(MIRROR_FROM_REP_DIR) src/lib/libsndfile LICENSE
 
 $(MIRROR_FROM_REP_DIR):
 	$(mirror_from_rep_dir)
 
 PORT_DIR := $(call port_dir,$(REP_DIR)/ports/libsndfile)
 
-src/lib/libsndfile/target.mk:
+src/lib/libsndfile:
 	mkdir -p src/lib/libsndfile
 	cp -r $(PORT_DIR)/src/lib/libsndfile/* src/lib/libsndfile
-	echo "LIBS = libsndfile" > $@
 
 LICENSE:
 	cp $(PORT_DIR)/src/lib/libsndfile/COPYING $@
