@@ -10,14 +10,7 @@ MIRROR_FROM_REP_DIR := lib/mk/freebl3.inc \
                        lib/mk/spec/x86_64/freebl3.mk \
                        lib/mk/spec/x86_64/nss3.mk \
                        lib/mk/spec/x86_64/nssckbi.mk \
-                       lib/mk/spec/x86_64/softokn3.mk \
-                       src/lib/freebl3/spec/arm_64/target.mk \
-                       src/lib/nssckbi/spec/arm_64/target.mk \
-                       src/lib/softokn3/spec/arm_64/target.mk \
-                       src/lib/freebl3/spec/x86_64/target.mk \
-                       src/lib/nssckbi/spec/x86_64/target.mk \
-                       src/lib/softokn3/spec/x86_64/target.mk
-
+                       lib/mk/spec/x86_64/softokn3.mk
 
 content: $(MIRROR_FROM_REP_DIR)
 
