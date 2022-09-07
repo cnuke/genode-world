@@ -7,9 +7,7 @@ MIRROR_FROM_REP_DIR := \
 	lib/mk/cmus_ip_mad.mk \
 	lib/mk/cmus_ip_opus.mk \
 	lib/mk/cmus_ip_vorbis.mk \
-	lib/mk/cmus_op_oss.mk \
-	src/lib/cmus/ip \
-	src/lib/cmus/op/oss
+	lib/mk/cmus_op_oss.mk
 
 OPUSFILE_PORT_DIR := $(call port_dir,$(REP_DIR)/ports/opusfile)
 
