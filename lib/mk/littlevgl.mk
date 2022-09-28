@@ -1,4 +1,4 @@
-include $(REP_DIR)/lib/import/import-lvgl.mk
+include $(REP_DIR)/lib/import/import-littlevgl.mk
 
 LIBLVGL_SRC_DIR := $(LIBLVGL_PORT_DIR)/src/lib/littlevgl
 
@@ -112,12 +112,12 @@ SRC_C_themes := \
 SRC_C := $(SRC_C_core) $(SRC_C_draw) $(SRC_C_fonts) $(SRC_C_hal) \
          $(SRC_C_misc) $(SRC_C_objx) $(SRC_C_themes)
 
-INC_DIR += $(REP_DIR)/src/lib/lvgl
+INC_DIR += $(REP_DIR)/src/lib/littlevgl
 
 LIBS += libc
 
 vpath %.c $(LIBLVGL_SRC_DIR)
-vpath %.cc $(REP_DIR)/src/lib/lvgl
+vpath %.cc $(REP_DIR)/src/lib/littlevgl
 
 SHARED_LIB := yes
 
