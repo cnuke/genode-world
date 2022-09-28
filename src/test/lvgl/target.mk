@@ -5,7 +5,7 @@ SRC_C  += demo.c img_bubble_pattern.c
 SRC_C  += lv_test_theme_1.c
 SRC_C  += lv_test_theme_2.c
 SRC_C  += lv_tutorial_keyboard.c
-LIBS   := lvgl libc
+LIBS   := base lvgl libc
 
 INC_DIR += $(PRG_DIR)
 

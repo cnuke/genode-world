@@ -14,9 +14,10 @@
 /* Genode includes */
 #include <libc/component.h>
 #include <base/log.h>
-#include <framebuffer_session/connection.h>
+#include <gui_session/connection.h>
 #include <input_session/connection.h>
 #include <timer_session/connection.h>
+#include <util/reconstructible.h>
 
 /* library includes */
 #include <lvgl.h>
@@ -27,23 +28,45 @@ struct Platform
 {
 	Genode::Env &_env;
 
-	Framebuffer::Mode _mode;
-	Framebuffer::Connection _fb    { _env, _mode };
-	Input::Connection       _input { _env };
+	Gui::Connection           _gui  { _env, "test-lvgl" };
+	Gui::Session::View_handle _view { _gui.create_view() };
+	Framebuffer::Mode         _mode;
 
-	void *_buffer { _env.rm().attach(_fb.dataspace()) };
+	Input::Session_client &_input { *_gui.input() };
+
+	Genode::Constructible<Genode::Attached_dataspace> _fb_ds { };
+	uint8_t *_framebuffer { nullptr };
 
 	Platform(Genode::Env &env) : _env(env)
 	{
-		_mode = _fb.mode();
+		_mode = Framebuffer::Mode { .area = { 1024, 768 } };
+
+		_gui.buffer(_mode, false);
+
+		_fb_ds.construct(_env.rm(), _gui.framebuffer()->dataspace());
+		_framebuffer = _fb_ds->local_addr<uint8_t>();
+
+		using Command = Gui::Session::Command;
+		using namespace Gui;
+
+		_gui.enqueue<Command::Geometry>(_view, Gui::Rect(Gui::Point(0, 0), _mode.area));
+		_gui.enqueue<Command::To_front>(_view, Gui::Session::View_handle());
+		_gui.enqueue<Command::Title>(_view, "webcam");
+		_gui.execute();
+
 	}
 
 	~Platform()
 	{
-		_env.rm().detach(_buffer);
+		_env.rm().detach(_framebuffer);
 	}
 
-	unsigned short *buffer() const { return (unsigned short*)_buffer; }
+	void refresh(int , int , int , int )
+	{
+		_gui.framebuffer()->refresh(0, 0, _mode.area.w(), _mode.area.h());
+	}
+
+	unsigned int *buffer() const { return (unsigned int*)_framebuffer; }
 };
 
 
@@ -52,19 +75,19 @@ static Platform *global_platform;
 static void global_disp_flush(int x1, int y1, int x2, int y2,
                               const lv_color_t * color_p)
 {
-	unsigned short *dst = global_platform->buffer();
-	unsigned width      = global_platform->_mode.width();
+	unsigned int *dst = global_platform->buffer();
+	unsigned width    = global_platform->_mode.area.w();
 	int32_t y;
 	int32_t x;
 	for(y = y1; y <= y2; y++) {
 		for(x = x1; x <= x2; x++) {
-			unsigned int c = lv_color_to16(*color_p);
+			unsigned int c = lv_color_to32(*color_p);
 			dst[y * width + x] = c;
 			color_p++;
 		}
 	}
 
-	global_platform->_fb.refresh(x1, y1, x, y2);
+	global_platform->refresh(x1, y1, x, y2);
 
 	lv_flush_ready();
 }
@@ -242,7 +265,7 @@ struct Main
 		// _timer.trigger_periodic(TIMER_US);
 
 		_last_ms = _timer.elapsed_ms();
-		_platform._fb.sync_sigh(_sigh);
+		_platform._gui.framebuffer()->sync_sigh(_sigh);
 		_platform._input.sigh(_sigh);
 
 		Libc::with_libc([&] {
