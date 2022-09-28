@@ -1,0 +1,17 @@
+set build_components { test/lvgl }
+
+set app_config {
+	<start name="test-lvgl" caps="200">
+		<resource name="RAM" quantum="64M"/>
+		<config>
+			<vfs> <dir name="dev"> <log/> </dir> </vfs>
+			<libc stdout="/dev/log"/>
+		</config>
+	</start>}
+
+set boot_modules {
+	libc.lib.so vfs.lib.so
+	lvgl.lib.so test-lvgl
+}
+
+source ${genode_dir}/repos/world/run/gui_app.inc
