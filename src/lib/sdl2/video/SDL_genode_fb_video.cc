@@ -95,7 +95,10 @@ void Genode_GLES_DeleteContext(_THIS, SDL_GLContext context);
 			video_events.height = mode.area.h();
 		}
 
-		Genode::Signal_handler<Sdl_framebuffer> _mode_handler {
+		/* XXX not being an Io_signal_handler prevents receiving of the
+		 *    signal...
+		 */
+		Genode::Io_signal_handler<Sdl_framebuffer> _mode_handler {
 			_env.ep(), *this, &Sdl_framebuffer::_handle_mode_change };
 
 		Sdl_framebuffer(Genode::Env &env, Gui::Connection &gui)
@@ -221,6 +224,7 @@ void Genode_GLES_DeleteContext(_THIS, SDL_GLContext context);
 		/* get dimensions */
 		int w, h;
 		SDL_GetWindowSize(window, &w, &h);
+		SDL_SetWindowResizable(window, (SDL_bool)true);
 
 		/* allocate and attach memory for framebuffer */
 		if (drv.fb_mem.constructed())
@@ -382,6 +386,7 @@ void Genode_GLES_DeleteContext(_THIS, SDL_GLContext context);
 
 		/* set name and user data */
 		SDL_SetWindowData(window, surface_name, surface);
+		SDL_SetWindowResizable(window, (SDL_bool)true);
 
 #if defined(SDL_VIDEO_OPENGL_EGL)
 		if (window->flags & SDL_WINDOW_OPENGL) {
