@@ -63,25 +63,6 @@ static SDL_Window *create_window(int w, int h)
 	return window;
 }
 
-#if 0
-static SDL_Surface *resize_screen(SDL_Surface * const screen, int w, int h)
-{
-	if (screen == nullptr) { return nullptr; }
-
-	int oldw = screen->w;
-	int oldh = screen->h;
-
-	SDL_Surface *nscreen = set_video_mode(w, h);
-	if (nscreen == nullptr) {
-		printf("Error: could not resize %dx%d -> %dx%d: %s\n",
-		       oldw, oldh, w, h, SDL_GetError());
-		return nullptr;
-	}
-
-	return nscreen;
-}
-#endif
-
 static void dump_supported_features()
 {
 	int const cpu_count = SDL_GetCPUCount();
@@ -191,6 +172,8 @@ int main(int, char*[] )
 
 	unsigned loop_cnt = 0;
 
+	SDL_StartTextInput();
+
 	bool done = false;
 	while (!done) {
 		loop_cnt ++;
@@ -203,15 +186,19 @@ int main(int, char*[] )
 			switch(event.type) {
 			case SDL_KEYDOWN:
 				printf("%s\n", SDL_GetKeyName(event.key.keysym.sym));
-				done = true;
+				// done = true;
 				break;
-/*
-			case SDL_VIDEORESIZE:
-				screen = resize_screen(screen, event.resize.w, event.resize.h);
-				if (screen == nullptr) { done = true; }
-
+			case SDL_TEXTINPUT:
+				/* Add new text onto the end of our text */
+				printf("%s\n", event.text.text);
 				break;
-*/
+			case SDL_WINDOWEVENT:
+				if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+					surface = SDL_GetWindowSurface(window);
+				}
+				break;
+			default:
+				break;
 			}
 		}
 
