@@ -36,23 +36,61 @@ struct Platform
 	Genode::Constructible<Genode::Attached_dataspace> _fb_ds { };
 	uint8_t *_framebuffer { nullptr };
 
-	Platform(Genode::Env &env) : _env(env)
+	Genode::Signal_handler<Platform> _sigh {
+		_env.ep(), *this, &Platform::_handle_mode_change };
+
+	void _handle_mode_change()
 	{
-		_mode = Framebuffer::Mode { .area = { 1024, 768 } };
+		/* dummy signal handler to active resizing */
+	}
+
+	Platform(Genode::Env &env, Framebuffer::Mode mode)
+	: _env(env), _mode { mode }
+	{
+		/* register handler early, otherwise resizing seems to has issues */
+		_gui.mode_sigh(_sigh);
 
 		_gui.buffer(_mode, false);
 
 		_fb_ds.construct(_env.rm(), _gui.framebuffer()->dataspace());
 		_framebuffer = _fb_ds->local_addr<uint8_t>();
+		size_t const size = mode.area.w() * mode.area.h() * 4;
+		Genode::error(__func__, " size: ", size, " [", _framebuffer, ",", _framebuffer + size, "]");
+
+		fb = (unsigned long)_framebuffer + size;
 
 		using Command = Gui::Session::Command;
 		using namespace Gui;
 
 		_gui.enqueue<Command::Geometry>(_view, Gui::Rect(Gui::Point(0, 0), _mode.area));
 		_gui.enqueue<Command::To_front>(_view, Gui::Session::View_handle());
-		_gui.enqueue<Command::Title>(_view, "webcam");
+		_gui.enqueue<Command::Title>(_view, "test-lvgl");
 		_gui.execute();
+	}
 
+	unsigned long fb = 0;
+
+	void update_mode(Framebuffer::Mode mode)
+	{
+		if (_fb_ds.constructed())
+			_fb_ds.destruct();
+		_framebuffer = nullptr;
+
+		_gui.buffer(_mode, false);
+
+		_fb_ds.construct(_env.rm(), _gui.framebuffer()->dataspace());
+		_framebuffer = _fb_ds->local_addr<uint8_t>();
+		size_t const size = mode.area.w() * mode.area.h() * 4;
+		Genode::error(__func__, " size: ", size, " [", _framebuffer, ",", _framebuffer + size, "]");
+
+		fb = (unsigned long)_framebuffer + size;
+		_mode = mode;
+
+		using Command = Gui::Session::Command;
+		using namespace Gui;
+
+		_gui.enqueue<Command::Geometry>(_view, Gui::Rect(Gui::Point(0, 0), mode.area));
+		_gui.execute();
 	}
 
 	~Platform()
@@ -71,16 +109,15 @@ struct Platform
 
 static Platform *global_platform;
 
-static lv_disp_drv_t *global_display;
-
 static void global_disp_flush(lv_disp_drv_t * disp_drv,
                               lv_area_t const * area,
                               lv_color_t * color_p)
 {
 	unsigned int *dst = global_platform->buffer();
-	unsigned width    = global_platform->_mode.area.w();
+	unsigned width    = disp_drv->hor_res;
 	int32_t y;
 	int32_t x;
+
 	for(y = area->y1; y <= area->y2; y++) {
 		for(x = area->x1; x <= area->x2; x++) {
 			unsigned int c = lv_color_to32(*color_p);
@@ -90,8 +127,7 @@ static void global_disp_flush(lv_disp_drv_t * disp_drv,
 	}
 
 	global_platform->refresh(area->x1, area->y1, x, y);
-
-	lv_disp_flush_ready(global_display);
+	lv_disp_flush_ready(disp_drv);
 }
 
 
@@ -141,6 +177,7 @@ static void update_input()
 
 void global_keyboard_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
 {
+	(void) indev_drv;
 	update_input();
 
 	data->key   = keyboard_key;
@@ -150,7 +187,7 @@ void global_keyboard_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
 
 void global_mouse_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
 {
-    (void) indev_drv;      /*Unused*/
+	(void) indev_drv;
 	update_input();
 
 	data->point.x = mouse_x;
@@ -162,25 +199,49 @@ void global_mouse_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
 #include <demos/lv_demos.h>
 #include <lv_demo_music.h>
 
+static char global_display_buffer[3840 * 1000];
+
 struct Main
 {
 	Genode::Env &_env;
 
-	Platform _platform { _env };
+	enum {
+		WIDTH  = 640,
+		HEIGHT = 480,
+	};
+
+	Framebuffer::Mode _mode { .area = { WIDTH, HEIGHT } };
+	Platform _platform { _env, _mode };
 
 	/* lv stuff */
 	lv_disp_drv_t  _disp_drv;
+	lv_disp_t     *_disp;
     lv_indev_drv_t _mouse_drv;
 	lv_indev_t    *_mouse_indev { nullptr };
 	lv_obj_t      *_mouse_cursor { nullptr };
 
-	enum {
-		WIDTH = 1024,
-		HEIGHT = 768,
-	};
-
 	lv_disp_draw_buf_t disp_buf1;
-	lv_color_t buf1_1[WIDTH * 100];
+	lv_color_t *buf1_1 = (lv_color_t*)global_display_buffer;
+
+	bool update_pending = false;
+
+	Genode::Signal_handler<Main> _mode_sigh {
+		_env.ep(), *this, &Main::_handle_mode_change };
+
+	void _handle_mode_change()
+	{
+		Framebuffer::Mode const req_mode = _platform._gui.mode();
+		bool const mode_matches = _mode.area == req_mode.area;
+
+			_platform.update_mode(req_mode);
+
+			_disp_drv.hor_res = req_mode.area.w();
+			_disp_drv.ver_res = req_mode.area.h();
+
+			lv_disp_drv_update(_disp, &_disp_drv);
+			update_pending = false;
+		_mode = req_mode;
+	}
 
     lv_indev_drv_t _keyboard_drv;
 	lv_indev_t    *_keyboard_indev { nullptr };
@@ -204,6 +265,8 @@ struct Main
 
 	void _handle_signals()
 	{
+		// _update_display_mode();
+
 		unsigned cur_ms = _timer.elapsed_ms();
 		unsigned diff_ms = cur_ms - _last_ms;
 		_last_ms = cur_ms;
@@ -227,15 +290,16 @@ struct Main
 		_disp_drv.hor_res = WIDTH;
 		_disp_drv.ver_res = HEIGHT;
 
-		lv_disp_t *disp = lv_disp_drv_register(&_disp_drv);
-		global_display = &_disp_drv;
+		// lv_disp_drv_update
 
-		lv_theme_t * th = lv_theme_default_init(disp,
-		                                        lv_palette_main(LV_PALETTE_BLUE),
-		                                        lv_palette_main(LV_PALETTE_RED),
-		                                        LV_THEME_DEFAULT_DARK,
-		                                        LV_FONT_DEFAULT);
-		lv_disp_set_theme(disp, th);
+		_disp = lv_disp_drv_register(&_disp_drv);
+
+		lv_theme_t * th = lv_theme_default_init(_disp,
+		                                         lv_palette_main(LV_PALETTE_BLUE),
+		                                         lv_palette_main(LV_PALETTE_RED),
+		                                         LV_THEME_DEFAULT_DARK,
+		                                         LV_FONT_DEFAULT);
+		lv_disp_set_theme(_disp, th);
 
 		lv_group_t * g = lv_group_create();
 		lv_group_set_default(g);
@@ -244,7 +308,7 @@ struct Main
 		_mouse_drv.type = LV_INDEV_TYPE_POINTER;
 		_mouse_drv.read_cb = global_mouse_read;
 		_mouse_indev = lv_indev_drv_register(&_mouse_drv);
-		// lv_indev_set_group(_mouse_indev, g);
+		// lv_indev_set_group(_mouse_indev, g);input
 
 		LV_IMG_DECLARE(mouse_cursor_icon);
 		_mouse_cursor = lv_img_create(lv_scr_act());
@@ -263,10 +327,13 @@ struct Main
 		_last_ms = _timer.elapsed_ms();
 		_platform._gui.framebuffer()->sync_sigh(_sigh);
 		_platform._input.sigh(_sigh);
+		_platform._gui.mode_sigh(_mode_sigh);
 
 		lv_demo_music();
 	}
 };
+
+extern "C" void wait_for_continue(void);
 
 
 void Libc::Component::construct(Libc::Env &env)
