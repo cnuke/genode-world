@@ -26,16 +26,6 @@
 #include <ring_buffer.h>
 
 extern "C" {
-/*
- * UINT64_C is needed by libav headers
- *
- * Use the compiler's definition as fallback because the UINT64_C macro is only
- * defined in <machine/_stdint.h> when used with C.
- */
-#ifndef UINT64_C
-#define UINT64_C(c) __UINT64_C(c)
-#endif
-
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/dict.h>
@@ -67,8 +57,6 @@ struct Audio_player::Output
 	Audio_out::Connection  _left;
 	Audio_out::Connection  _right;
 	Audio_out::Connection *_out[NUM_CHANNELS];
-
-	Audio_out::Packet     *_alloc_position;
 
 	unsigned _packets_submitted = 0;
 
@@ -103,7 +91,6 @@ struct Audio_player::Output
 	void stop()
 	{
 		for_each_channel([&] (int const i) { _out[i]->stop(); });
-		_alloc_position = nullptr;
 	}
 
 	/**
@@ -121,14 +108,7 @@ struct Audio_player::Output
 	 */
 	unsigned queued()
 	{
-		if (_alloc_position == nullptr) _alloc_position = _out[LEFT]->stream()->next();
-
-		unsigned const packet_pos = _out[LEFT]->stream()->packet_position(_alloc_position);
-		unsigned const play_pos   = _out[LEFT]->stream()->pos();
-		unsigned const queued     = packet_pos < play_pos
-		                            ? ((Audio_out::QUEUE_SIZE + packet_pos) - play_pos)
-		                            : packet_pos - play_pos;
-		return queued;
+		return _out[LEFT]->stream()->queued();
 	}
 
 	/**
@@ -136,12 +116,10 @@ struct Audio_player::Output
 	 */
 	void drain_buffer(Frame_data &frame_data)
 	{
-		if (_alloc_position == nullptr) _alloc_position = _out[LEFT]->stream()->next();
-
 		while (frame_data.read_avail() > (AUDIO_OUT_PACKET_SIZE)) {
 			Audio_out::Packet *p[NUM_CHANNELS];
 
-			p[LEFT] = _out[LEFT]->stream()->next(_alloc_position);
+			p[LEFT] = _out[LEFT]->stream()->alloc();
 
 			unsigned const ppos = _out[LEFT]->stream()->packet_position(p[LEFT]);
 			p[RIGHT]            = _out[RIGHT]->stream()->get(ppos);
@@ -162,8 +140,6 @@ struct Audio_player::Output
 			}
 
 			for_each_channel([&] (int const i) { _out[i]->submit(p[i]); });
-
-			_alloc_position = p[LEFT];
 
 			_packets_submitted++;
 		}
