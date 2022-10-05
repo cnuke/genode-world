@@ -134,9 +134,10 @@ struct Audio_player::Output
 			float *left_content  = p[LEFT]->content();
 			float *right_content = p[RIGHT]->content();
 
+			/* try to prevent clipping */
 			for (unsigned i = 0; i < Audio_out::PERIOD; i++) {
-					left_content[i]  = tmp[i * NUM_CHANNELS + LEFT];
-					right_content[i] = tmp[i * NUM_CHANNELS + RIGHT];
+				left_content[i]  = tmp[i * NUM_CHANNELS + LEFT]  * 0.8f;
+				right_content[i] = tmp[i * NUM_CHANNELS + RIGHT] * 0.8f;
 			}
 
 			for_each_channel([&] (int const i) { _out[i]->submit(p[i]); });
@@ -459,11 +460,13 @@ class Audio_player::Decoder
 					return;
 				}
 
-				av_opt_set_int(_avr, "in_channel_layout",  AV_CH_LAYOUT_STEREO,     0);
-				av_opt_set_int(_avr, "out_channel_layout", AV_CH_LAYOUT_STEREO,     0);
+				uint64_t const in_ch_layout = av_get_default_channel_layout(_codec_ctx->channels);
+				av_opt_set_int(_avr, "in_channel_layout",  in_ch_layout,            0);
 				av_opt_set_int(_avr, "in_sample_rate",     _codec_ctx->sample_rate, 0);
-				av_opt_set_int(_avr, "out_sample_rate",    Audio_out::SAMPLE_RATE,  0);
 				av_opt_set_int(_avr, "in_sample_fmt",      _codec_ctx->sample_fmt,  0);
+
+				av_opt_set_int(_avr, "out_channel_layout", AV_CH_LAYOUT_STEREO,     0);
+				av_opt_set_int(_avr, "out_sample_rate",    Audio_out::SAMPLE_RATE,  0);
 				av_opt_set_int(_avr, "out_sample_fmt",     AV_SAMPLE_FMT_FLT,       0);
 
 				if (avresample_open(_avr) < 0) {
@@ -478,7 +481,8 @@ class Audio_player::Decoder
 				av_init_packet(&_packet);
 
 				/* extract metainformation */
-				bool const is_vorbis = _codec_ctx->codec_id == AV_CODEC_ID_VORBIS;
+				bool const is_vorbis = _codec_ctx->codec_id == AV_CODEC_ID_VORBIS
+				                    || _codec_ctx->codec_id == AV_CODEC_ID_OPUS;
 
 				AVDictionary *md = is_vorbis ? _stream->metadata : _format_ctx->metadata;
 				int const flags  = AV_DICT_IGNORE_SUFFIX;
@@ -559,7 +563,6 @@ class Audio_player::Decoder
 
 			Libc::with_libc([&] {
 				while (written < min) {
-
 					if (av_read_frame(_format_ctx, &_packet) != 0) { break; }
 
 					if (_packet.stream_index == _stream->index) {
@@ -570,11 +573,9 @@ class Audio_player::Decoder
 
 							/*
 							 * We have to read all available samples, otherwise we
-							 * end up leaking memory. Draining all available sample will
-							 * lead to distorted audio; checking for > 64 works(tm) but
-							 * we might still leak some memory (hopefully the song's duration
-							 * is not too long.) FWIW, it seems to be happening only when
-							 * resampling vorbis files with FLTP format.
+							 * end up leaking memory. We still leak some memory (hopefully
+							 * the song's duration is not too long.) FWIW, it seems to be
+							 * happening only when resampling opus/vorbis files in FLTP format.
 							 */
 							AVFrame *in = _frame;
 							do {
@@ -583,15 +584,17 @@ class Audio_player::Decoder
 									return 0;
 								}
 
-								void   const *data  = _conv_frame->extended_data[0];
-								size_t const  bytes = _conv_frame->linesize[0];
+								void   const *data  = _conv_frame->data[0];
 								size_t const      s = 2 /* stereo */ * sizeof(float);
+								size_t const  bytes = _conv_frame->nb_samples * s;
+								if (bytes == 0)
+									break;
 
 								_samples_decoded += bytes / s;
 								written += frame_data.write(data, bytes);
 
 								in = nullptr;
-							} while (avresample_available(_avr) > 64);
+							} while (avresample_available(_avr) > 0);
 						}
 					}
 
