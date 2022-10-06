@@ -1,8 +1,17 @@
 <runtime ram="32M" caps="200" binary="audio_player">
 
-	<requires> <audio_out/> <timer/> <file_system/> </requires>
+	<requires>
+		<audio_out/>
+		<timer/>
+		<file_system label="media"/>
+		<report label="playlist"/>
+	</requires>
 
-	<config/>
+	<config state="playing">
+		<report progress="yes" interval="1" playlist="1"/>
+		<vfs> <fs label="media"/> </vfs>
+		<libc/>
+	</config>
 
 	<content>
 		<rom label="ld.lib.so"/>
