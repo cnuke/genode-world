@@ -49,8 +49,10 @@ INC_DIR += \
 	$(LIBLVGL_SRC_DIR)/src/extra/layouts/grid
 
 SRC_C_extra_themes := \
-	$(addprefix extra/themes/default/,$(notdir $(wildcard $(LIBLVGL_SRC_DIR)/src/extra/themes/default/*.c)))
-INC_DIR += $(LIBLVGL_SRC_DIR)/src/extra/themes/default
+	$(addprefix extra/themes/default/,$(notdir $(wildcard $(LIBLVGL_SRC_DIR)/src/extra/themes/default/*.c))) \
+	$(addprefix extra/themes/basic/,$(notdir $(wildcard $(LIBLVGL_SRC_DIR)/src/extra/themes/basic/*.c)))
+INC_DIR += $(LIBLVGL_SRC_DIR)/src/extra/themes/default \
+           $(LIBLVGL_SRC_DIR)/src/extra/themes/basic
 
 SRC_C_extra_widgets := \
 	$(addprefix extra/widgets/,$(notdir $(wildcard $(LIBLVGL_SRC_DIR)/src/extra/widgets/*.c))) \
