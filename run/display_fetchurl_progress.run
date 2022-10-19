@@ -1,0 +1,111 @@
+set build_components { app/display_fetchurl_progress server/dynamic_rom }
+
+set app_config {
+	<start name="dynamic_rom">
+		<resource name="RAM" quantum="4M"/>
+		<provides><service name="ROM"/></provides>
+		<config verbose="no">
+			<rom name="progress">
+				<inline>
+<progress>
+	<fetch url="https://genode.org/about/LICENSE" total="0.0" now="0.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="5000"/>
+				<inline>
+<progress>
+	<fetch url="https://genode.org/about/LICENSE" total="44030.0" now="10.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="1000"/>
+				<inline>
+<progress>
+	<fetch url="https://genode.org/about/LICENSE" total="44030.0" now="1000.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="1000"/>
+				<inline>
+<progress>
+	<fetch url="https://genode.org/about/LICENSE" total="44030.0" now="10000.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="2000"/>
+				<inline>
+<progress>
+	<fetch url="https://genode.org/about/LICENSE" total="0.0" now="20000.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="2000"/>
+				<inline>
+<progress>
+	<fetch url="https://genode.org/about/LICENSE" total="44030.0" now="20000.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="2000"/>
+				<inline>
+<progress>
+	<fetch url="https://genode.org/about/LICENSE" total="44030.0" now="40000.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="1000"/>
+				<inline description="last">
+<progress>
+	<fetch url="https://genode.org/about/LICENSE" total="44030.0" now="44030.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="5000"/>
+				<inline>
+<progress>
+	<fetch url="https://genode.org/about/foo" total="1024.0" now="10.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="1000"/>
+				<inline>
+<progress>
+	<fetch url="https://genode.org/about/foo" total="1024.0" now="100.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="500"/>
+				<inline>
+<progress>
+	<fetch url="https://genode.org/about/foo" total="1024.0" now="512.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="1000"/>
+				<inline>
+<progress>
+	<fetch url="https://genode.org/about/foo" total="1024.0" now="990.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="500"/>
+				<inline>
+<progress>
+	<fetch url="https://genode.org/about/foo" total="1024.0" now="1024.0"/>
+</progress>
+				</inline>
+				<sleep milliseconds="2000"/>
+			</rom>
+		</config>
+	</start>
+
+	<start name="display_fetchurl_progress" caps="200">
+		<resource name="RAM" quantum="64M"/>
+		<config>
+			<vfs> <dir name="dev"> <log/> </dir> </vfs>
+			<libc stdout="/dev/log"/>
+		</config>
+		<route>
+			<service name="ROM" label="progress"> <child name="dynamic_rom"/> </service>
+			<service name="Gui"> <child name="wm"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>}
+
+set boot_modules {
+	dynamic_rom
+
+	libc.lib.so vfs.lib.so
+	lvgl.lib.so display_fetchurl_progress
+}
+
+source ${genode_dir}/repos/world/run/gui_app.inc
