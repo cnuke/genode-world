@@ -17,7 +17,7 @@ qmake_prepared.tag: qmake_root/lib/nss3.lib.so
 # Limit the number of parallel ninja jobs to 16 by default to keep RAM
 # demand below 32 GiB.
 #
-NINJAJOBS ?= -j$(shell echo -e "$(shell nproc)\n16" | sort -g | head -n1)
+NINJAJOBS ?= -j$(shell echo -e "$(shell nproc)\n48" | sort -g | head -n1)
 
 built.tag: qmake_prepared.tag
 
