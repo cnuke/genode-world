@@ -1,0 +1,29 @@
+From 2cde63fff1bc5049e6c8201195395ed3fd5af4eb Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Josef=20S=C3=B6ntgen?= <josef.soentgen@genode-labs.com>
+Date: Fri, 18 Nov 2022 10:17:17 +0100
+Subject: [PATCH] Allow all feature requests
+
+On the PinePhone the media access dialog is not working properly,
+as the reject and accept buttons are not displayed.
+---
+ src/app/WebViewImpl.qml | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/app/WebViewImpl.qml b/src/app/WebViewImpl.qml
+index ce1d65f1..9374489b 100644
+--- a/src/app/WebViewImpl.qml
++++ b/src/app/WebViewImpl.qml
+@@ -192,6 +192,10 @@ WebView {
+ 
+      onFeaturePermissionRequested: {
+ 
++         // for now allow all requests
++         grantFeaturePermission(securityOrigin, feature, true);
++         return;
++
+          switch(feature)
+          {
+              case WebEngineView.Geolocation:
+-- 
+2.34.1
+
