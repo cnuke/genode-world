@@ -1,0 +1,15 @@
+<runtime ram="20M" caps="200" binary="pc_wifi_ath9k_drv">
+
+	<requires>
+		<timer/>
+		<usb/>
+	</requires>
+
+	<config label="pc_wifi_ath9k_drv"/>
+
+	<content>
+		<rom label="pc_wifi_ath9k_drv"/>
+		<rom label="htc_9271-1.4.0.fw"/>
+	</content>
+
+</runtime>

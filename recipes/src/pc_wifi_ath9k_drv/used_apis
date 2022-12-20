@@ -1,0 +1,15 @@
+base
+genode_c_api
+jitterentropy
+libc
+openssl
+os
+pc_linux
+pc_linux_ath9k_extras
+nic_session
+usb_session
+platform_session
+report_session
+timer_session
+uplink_session
+vfs

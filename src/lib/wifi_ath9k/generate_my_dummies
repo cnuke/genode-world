@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# my linux directory is $HOME/Hacking/linux, this may need to be adjusted
+./tool/dde_linux/create_dummies generate TARGET=drivers/wifi_ath9k_drv/pc LINUX_KERNEL_DIR=$HOME/Hacking/linux DUMMY_FILE=repos/world/src/lib/wifi_ath9k/generated_dummies.c BUILD_DIR=build/x86_64
