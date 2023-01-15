@@ -1,0 +1,177 @@
+diff -ruN pc/src/drivers/wifi/pc/README world/src/drivers/wifi_ath9k_drv/pc/README
+--- pc/src/drivers/wifi/pc/README	2022-05-27 12:45:41.995234498 +0000
++++ world/src/drivers/wifi_ath9k_drv/pc/README	2023-01-15 13:49:43.960974176 +0000
+@@ -1,22 +1,26 @@
+-The pc_wifi_drv component is a port of the Linux mac802.11 stack, including
+-the iwlwifi driver as well as libnl and wpa_supplicant, to Genode.
++The pc_wifi_ath9k_drv component is a port of the Linux mac802.11 stack, including
++the ath9k driver as well as libnl and wpa_supplicant, to Genode.
++
++It behaves mostly the same as the iwlwifi driver-based version
+ 
+ To start the component the following configuration snippet can be used:
+ 
+-!<start name="pc_wifi_drv" caps="250">
+-!  <resource name="RAM" quantum="32M"/>
+-!  <provides><service name="Nic"/></provides>
++!<start name="wifi_ath9k_drv" caps="250">
++!  <resource name="RAM" quantum="64M"/>
+ !  <config>
+-!    <libc stdout="/dev/null" stderr="/dev/null" rtc="/dev/rtc"/>
++!    <libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc"/>
+ !    <vfs>
+-!      <dir name="dev"> <log/> <null/> <rtc/> <wifi/>
+-!      <jitterentropy name="random"/>
+-!      <jitterentropy name="urandom"/>
++!      <dir name="dev"> <null/> <zero/> <log/> <rtc/> <wifi_ath9k/>
++!        <jitterentropy name="random"/>
++!        <jitterentropy name="urandom"/>
++         <inline name="rtc">2018-01-01 00:01</inline>
+ !      </dir>
+ !    </vfs>
+ !  </config>
+ !  <route>
+-!    <service name="Rtc"> <any-child /> </service>
++!    <service name="Uplink"> <child name="nic_router" label="wifi_drv ->"/> </service>
++     <service name="Platform"> <parent label="usb"/> </service>
++	 <service name="Rom" label="wifi_config"> <parent label="config -> managed/wifi"/> </service>
+ !    <any-service> <parent/> <any-child /> </any-service>
+ !  </route>
+ !</start
+@@ -96,9 +100,13 @@
+ SSID is copied verbatim. At the moment, there is no way to express or escape
+ non alphanumeric characters.
+ 
++On certain cards, e.g. Intel Wireless 6200 ABG, it may be necessary to disable
++the 11n mode. This can be achieved by setting the 'use_11n' attribute in
++the 'wifi_config' node to 'no'.
++
+ The driver optionally reports the following information under the
+ label "devices" if requested in the config as depicted.
+ 
+ ! <config> <report mac_address="true"/> </config>
+ 
+-! <devices> <nic mac_address="02:00:00:00:00:01"/> </devices>
++! <devices> <nic mac_address="02:00:00:00:00:01"/> </devices>
+\ No newline at end of file
+diff -ruN pc/src/drivers/wifi/pc/frontend.h world/src/drivers/wifi_ath9k_drv/pc/frontend.h
+--- pc/src/drivers/wifi/pc/frontend.h	2022-10-14 17:51:34.307692271 +0000
++++ world/src/drivers/wifi_ath9k_drv/pc/frontend.h	2023-01-15 13:49:43.960974176 +0000
+@@ -83,6 +83,7 @@
+ 	{ "CTRL-EVENT-DISCONNECTED",      23 },
+ 	{ "SME: Trying to authenticate",  27 },
+ 	{ "CTRL-EVENT-NETWORK-NOT-FOUND", 28 },
++	{ "IFACE-DEINIT",                 12 },
+ };
+ 
+ enum Rmi {
+@@ -93,6 +94,7 @@
+ 	DISCONNECTED,
+ 	SME_AUTH,
+ 	NOT_FOUND,
++	IFACE_DEINIT,
+ };
+ 
+ 
+@@ -120,6 +122,8 @@
+ static bool network_not_found(char const *msg) {
+ 	return check_recv_msg(msg, recv_table[NOT_FOUND]); }
+ 
++static bool iface_deinit(char const *msg) {
++	return check_recv_msg(msg, recv_table[IFACE_DEINIT]); }
+ 
+ static bool scan_results(char const *msg) {
+ 	return Genode::strcmp("bssid", msg, 5) == 0; }
+@@ -566,6 +570,7 @@
+ 		REMOVE_NETWORK     = 0x40|NETWORK,
+ 		ENABLE_NETWORK     = 0x50|NETWORK,
+ 		DISABLE_NETWORK    = 0x60|NETWORK,
++		DISCONNECT_NETWORK = 0x70|NETWORK,
+ 		LIST_NETWORKS      = 0x80|NETWORK,
+ 
+ 		CONNECTING   = 0x00|CONNECT,
+@@ -780,6 +785,19 @@
+ 		_remove_stale_aps();
+ 	}
+ 
++	void _remove_all_aps()
++	{
++		/* only called from IDLE state */
++		/* removes APs without removing their networks from the supplicant
++		 * used when a supplicant interface de-inits, so all APs are taken
++		 * down automatically */
++		Genode::log("Interface disabled, removing all accesspoints.");
++		_connected_ap.invalidate();
++		_aps.for_each([&] (Accesspoint &ap) {
++			_free_ap(ap);
++		});
++	}
++
+ 	void _remove_stale_aps()
+ 	{
+ 		if (_state != State::IDLE) {
+@@ -906,6 +924,12 @@
+ 		_submit_cmd(Cmd_str("DISABLE_NETWORK ", ap.id));
+ 	}
+ 
++	void _network_disconnect()
++	{
++		_state_transition(_state, State::DISCONNECT_NETWORK);
++		_submit_cmd(Cmd_str("DISCONNECT"));
++	}
++
+ 	void _network_set_ssid(char const *msg)
+ 	{
+ 		long id = -1;
+@@ -1102,6 +1126,23 @@
+ 			}
+ 			break;
+ 		}
++		case State::DISCONNECT_NETWORK:
++		{
++			_state_transition(_state, State::IDLE);
++
++			if (!cmd_successful(msg)) {
++				Genode::error("could not disconnect from network: ", msg);
++			} else {
++				if (_processed_ap != nullptr) {
++					Accesspoint &ap = *_processed_ap;
++					/* reset processed AP as this is an end state */
++					_processed_ap = nullptr;
++					_network_disable(ap);
++				}
++				successfully = true;
++			}
++			break;
++		}
+ 		case State::LIST_NETWORKS:
+ 			_state_transition(_state, State::IDLE);
+ 
+@@ -1468,6 +1509,15 @@
+ 
+ 		} else
+ 
++		if (iface_deinit(msg)) {
++
++			_state_transition(_state, State::IDLE);
++			_remove_all_aps();
++			/* re-read config if the interface re-connects */
++			_deferred_config_update = true;
++
++		} else
++
+ 		{
+ 			_handle_connection_events(msg);
+ 		}
+diff -ruN pc/src/drivers/wifi/pc/target.mk world/src/drivers/wifi_ath9k_drv/pc/target.mk
+--- pc/src/drivers/wifi/pc/target.mk	2022-04-27 10:23:44.725844172 +0000
++++ world/src/drivers/wifi_ath9k_drv/pc/target.mk	2023-01-15 13:49:43.960974176 +0000
+@@ -1,6 +1,6 @@
+-TARGET  := pc_wifi_drv
++TARGET  := wifi_ath9k_drv
+ SRC_CC  := main.cc wpa.cc
+-LIBS    := base wifi wifi_firmware
++LIBS    := base wifi_ath9k wifi_firmware
+ LIBS    += libc
+ LIBS    += wpa_supplicant
+ LIBS    += libcrypto libssl wpa_driver_nl80211
