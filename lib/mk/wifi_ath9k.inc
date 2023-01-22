@@ -45,11 +45,9 @@ CC_C_OPT += -DCONFIG_RFKILL_INPUT
 CC_OPT += -DCONFIG_IWLWIFI_DEBUG
 
 # need to look in the pc repository or in our own in case of depot builds
-vpath %.c  $(REP_DIR)/../pc/src/lib/pc
-vpath %.cc $(REP_DIR)/../pc/src/lib/pc
-
-vpath %.c  $(REP_DIR)/src/lib/pc
-vpath %.cc $(REP_DIR)/src/lib/pc
+PC_REPO_DIR := $(call select_from_repositories,src/lib/pc)
+vpath %.c  $(PC_REPO_DIR)
+vpath %.cc $(PC_REPO_DIR)
 
 vpath %.c $(TARGET_LIB_DIR)
 vpath %.cc $(TARGET_LIB_DIR)
