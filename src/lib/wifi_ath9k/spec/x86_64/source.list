@@ -156,6 +156,10 @@ drivers/net/wireless/ath/ath9k/eeprom_9287.c
 drivers/net/wireless/ath/ath9k/ar9003_eeprom.c
 drivers/net/wireless/ath/ath9k/eeprom_def.c
 drivers/net/wireless/ath/ath9k/ar9003_paprd.c
+drivers/net/wireless/ath/ath9k/ar9003_aic.c
+drivers/net/wireless/ath/ath9k/ar9003_mci.c
+drivers/net/wireless/ath/ath9k/ar9003_rtt.c
+drivers/net/wireless/ath/ath9k/btcoex.c
 
 drivers/pci/pci-driver.c
 
