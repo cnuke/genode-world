@@ -7,14 +7,6 @@
 #include <lx_emul.h>
 
 
-#include <linux/ratelimit.h>
-
-int ___ratelimit(struct ratelimit_state * rs,const char * func)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 #include <linux/clk-provider.h>
 
 const char * __clk_get_name(const struct clk * clk)

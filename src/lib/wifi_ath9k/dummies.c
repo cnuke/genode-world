@@ -387,3 +387,21 @@ void sha256_update(struct sha256_state * sctx,const u8 * data,unsigned int len)
 {
 	lx_emul_trace_and_stop(__func__);
 }
+
+
+#include <linux/usb.h>
+
+int usb_reset_device(struct usb_device *dev)
+{
+	lx_emul_trace(__func__);
+	return 0;
+}
+
+
+#include <linux/ratelimit.h>
+
+int ___ratelimit(struct ratelimit_state * rs,const char * func)
+{
+	lx_emul_trace(__func__);
+	return 1;
+}

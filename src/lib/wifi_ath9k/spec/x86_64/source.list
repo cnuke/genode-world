@@ -161,6 +161,19 @@ drivers/net/wireless/ath/ath9k/ar9003_mci.c
 drivers/net/wireless/ath/ath9k/ar9003_rtt.c
 drivers/net/wireless/ath/ath9k/btcoex.c
 
+lib/crc-ccitt.c
+lib/kfifo.c
+drivers/net/wireless/ralink/rt2x00/rt2800lib.c
+drivers/net/wireless/ralink/rt2x00/rt2800usb.c
+drivers/net/wireless/ralink/rt2x00/rt2x00config.c
+drivers/net/wireless/ralink/rt2x00/rt2x00crypto.c
+drivers/net/wireless/ralink/rt2x00/rt2x00dev.c
+drivers/net/wireless/ralink/rt2x00/rt2x00firmware.c
+drivers/net/wireless/ralink/rt2x00/rt2x00link.c
+drivers/net/wireless/ralink/rt2x00/rt2x00mac.c
+drivers/net/wireless/ralink/rt2x00/rt2x00queue.c
+drivers/net/wireless/ralink/rt2x00/rt2x00usb.c
+
 drivers/pci/pci-driver.c
 
 drivers/base/bus.c

@@ -172,6 +172,7 @@ static const char * lx_emul_initcall_order[] = {
 	"__initcall_iwl_drv_init6",
 	"__initcall_iwl_init6",
 	"__initcall_iwl_mvm_init6",
+	"__initcall_rt2800usb_driver_init6",
 	"__initcall_ath9k_cmn_init6",
 	"__initcall_ath9k_htc_init6",
 	"__initcall_ehci_hcd_init6",
