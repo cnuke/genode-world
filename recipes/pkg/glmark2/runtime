@@ -40,6 +40,7 @@
 		<!-- <arg value="\-\-debug"/> -->
 		<arg value="-b"/>
 		<arg value=":duration=4.0"/>
+		<arg value="--run-forever"/>
 	</config>
 
 </runtime>
