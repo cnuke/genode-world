@@ -227,6 +227,9 @@ static int uplink_netdev_event(struct notifier_block *this,
 }
 
 
+extern void wakeup_wpa(void);
+
+
 static int user_task_function(void *arg)
 {
 	struct netdev_event_notification events;
@@ -248,7 +251,8 @@ static int user_task_function(void *arg)
 				continue;
 
 			/* enable link sensing, repeated calls are handled by testing IFF_UP */
-			dev_open(dev, 0);
+			if (dev_open(dev, 0) == 0)
+				wakeup_wpa();
 
 			/* install rx handler once */
 			if (!netdev_is_rx_handler_busy(dev))

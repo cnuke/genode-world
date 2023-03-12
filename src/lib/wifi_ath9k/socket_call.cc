@@ -503,7 +503,7 @@ extern "C" int socketcall_task_function(void *)
 	static Lx::Socket inst(Lx_kit::env().env.ep());
 	_socket = &inst;
 
-	wpa_blockade->wakeup();
+	// wpa_blockade->wakeup();
 
 	while (true) {
 
