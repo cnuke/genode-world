@@ -116,6 +116,16 @@ struct Wlan
 
 Genode::Blockade *wpa_blockade;
 
+extern "C" void wakeup_wpa(void)
+{
+	static bool called_once = false;
+	if (called_once)
+		return;
+
+	called_once = true;
+	wpa_blockade->wakeup();
+}
+
 
 void wifi_init(Genode::Env      &env,
                Genode::Blockade &blockade)
