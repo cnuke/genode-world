@@ -260,6 +260,7 @@ puts $fd {
 close $fd
 
 set firmware_modules {
+	rt2870.bin
 	regulatory.db
 	regulatory.db.p7s
 	htc_9271-1.4.0.fw
