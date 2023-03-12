@@ -276,8 +276,10 @@ int Usb::Lx_wrapper::usb_control_msg(unsigned int pipe, Genode::uint8_t request,
 	if ( !_dev.config ) return -1;
 	Usb::Interface &iface = _dev.interface(0);
 
+	bool const read = (requesttype & 0x80);
 	Usb::Packet_descriptor p = iface.alloc(size);
-	Genode::memcpy(iface.content(p), data, size);
+	if (!read)
+		Genode::memcpy(iface.content(p), data, size);
 	iface.control_transfer(p, requesttype, request, value, index, timeout,
 	                       false, this);
 	_ctrl_status = PENDING;
@@ -292,6 +294,8 @@ int Usb::Lx_wrapper::usb_control_msg(unsigned int pipe, Genode::uint8_t request,
 		return -1;
 	}
 	else {
+		if (read)
+			Genode::memcpy(data, iface.content(p), size);
 		return size;
 	}
 }
