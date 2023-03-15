@@ -34,6 +34,8 @@ using namespace Genode;
 
 extern "C" int  lx_emul_rfkill_get_any(void);
 extern "C" void lx_emul_rfkill_switch_all(int blocked);
+/* Disable kernel pointer hashing for debugging */
+extern "C" int no_hash_pointers_enable(char *str);
 
 static Genode::Signal_context_capability _rfkill_sigh_cap;
 
@@ -106,7 +108,7 @@ struct Wlan
 		genode_uplink_init(genode_env_ptr(_env),
 		                   genode_allocator_ptr(Lx_kit::env().heap),
 		                   genode_signal_handler_ptr(_signal_handler));
-
+		no_hash_pointers_enable(nullptr);
 		lx_emul_start_kernel(nullptr);
 	}
 };
