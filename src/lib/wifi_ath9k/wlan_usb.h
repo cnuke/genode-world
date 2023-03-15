@@ -103,7 +103,8 @@ class Usb::Lx_wrapper : Usb::Completion
 		destroy(Lx_kit::env().heap, _connect_task);
 	}
 
-	static int constexpr default_pid = 10;
+	/* FIXME: set up tasks with kernel_thread for auto-assigned PIDs */
+	static int constexpr default_pid = 1000;
 	void init()
 	{
 		_complete_task = new (Lx_kit::env().heap)
