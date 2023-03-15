@@ -250,12 +250,19 @@ install_config $config
 # Define USB host controller config
 #
 set fd [open [run_dir]/genode/usb_host_drv.config w]
-puts $fd { <config> <report devices="yes"/> <default-policy vendor_id="0x07d1" product_id="0x3c16"/> </config> }
+puts $fd {
+	<config>
+		<report devices="yes"/>
+		<default-policy vendor_id="0x0cf3" product_id="0x9271"/>
+		<default-policy vendor_id="0x07d1" product_id="0x3c16"/>
+	</config>
+}
 close $fd
 
 set firmware_modules {
 	regulatory.db
 	regulatory.db.p7s
+	htc_9271-1.4.0.fw
 }
 
 #
@@ -281,7 +288,8 @@ build_boot_image $boot_modules
 
 append qemu_args " -nographic "
 append qemu_args " -device nec-usb-xhci,id=xhci "
-append qemu_args " -device usb-host,bus=xhci.0,vendorid=0x07d1,productid=0x3c16 "
+append qemu_args " -device usb-host,bus=xhci.0,vendorid=0x0cf3,productid=0x9271"
+append qemu_args " -device usb-host,bus=xhci.0,vendorid=0x07d1,productid=0x3c16"
 
 run_genode_until forever
 
