@@ -490,6 +490,10 @@ class Lx::Socket
 			_sender.submit();
 			_block.down();
 		}
+		void submit()
+		{
+			_sender.submit();
+		}
 };
 
 
@@ -503,7 +507,7 @@ extern "C" int socketcall_task_function(void *)
 	static Lx::Socket inst(Lx_kit::env().env.ep());
 	_socket = &inst;
 
-	// wpa_blockade->wakeup();
+	wpa_blockade->wakeup();
 
 	while (true) {
 
@@ -514,12 +518,20 @@ extern "C" int socketcall_task_function(void *)
 }
 
 
+void misuse_submit(void)
+{
+	if (!_socket) { return; }
+	_socket->submit();
+}
+
+
 void wifi_kick_socketcall()
 {
 	/* ignore silently, the function might be called to before init */
 	if (!_socket) { return; }
 
 	lx_emul_task_unblock(socketcall_task_struct_ptr);
+	Genode::warning(__func__, ":", __LINE__, ": before schedule()");
 	Lx_kit::env().scheduler.schedule();
 }
 

@@ -244,16 +244,22 @@ static int user_task_function(void *arg)
 
 		struct net_device *dev;
 
+		printk("%s:%d\n", __func__, __LINE__);
 		for_each_netdev(&init_net, dev) {
 
+			printk("%s:%d\n", __func__, __LINE__);
 			/* there might be more devices, e.g. 'lo', in the netnamespace */
 			if (strcmp(&dev->name[0], "wlan0") != 0)
 				continue;
 
+			printk("%s:%d\n", __func__, __LINE__);
 			/* enable link sensing, repeated calls are handled by testing IFF_UP */
-			if (dev_open(dev, 0) == 0)
+			int const opened = dev_open(dev, 0);
+			printk("%s:%d opened: %d\n", __func__, __LINE__, opened);
+			if (opened == 0)
 				wakeup_wpa();
 
+			printk("%s:%d\n", __func__, __LINE__);
 			/* install rx handler once */
 			if (!netdev_is_rx_handler_busy(dev))
 				netdev_rx_handler_register(dev, handle_rx, NULL);
@@ -268,22 +274,30 @@ static int user_task_function(void *arg)
 			}
 			#endif /* 0 */
 
+		printk("%s:%d block\n", __func__, __LINE__);
+
 			/* respond to cable plug/unplug */
 			handle_create_uplink(dev);
+		printk("%s:%d block\n", __func__, __LINE__);
 			handle_destroy_uplink(dev);
 
+
+		printk("%s:%d block\n", __func__, __LINE__);
 			/* transmit packets received from the uplink session */
 			if (netif_carrier_ok(dev)) {
 
 				struct genode_uplink_rx_context ctx = { .dev = dev };
 
+				printk("%s:%d\n", __func__, __LINE__);
 				while (genode_uplink_rx(dev_genode_uplink(dev),
 				                        uplink_rx_one_packet,
 				                        &ctx));
+				printk("%s:%d\n", __func__, __LINE__);
 			}
 		};
 
 		/* block until lx_emul_task_unblock */
+		printk("%s:%d block\n", __func__, __LINE__);
 		lx_emul_task_schedule(true);
 	}
 
@@ -300,4 +314,5 @@ void uplink_init(void)
 	pid = kernel_thread(user_task_function, NULL, CLONE_FS | CLONE_FILES);
 
 	uplink_task_struct_ptr = find_task_by_pid_ns(pid, NULL);
+	lx_emul_task_name(uplink_task_struct_ptr, "uplink");
 }

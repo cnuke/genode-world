@@ -191,14 +191,21 @@ void Usb::Lx_wrapper::complete(Usb::Packet_descriptor & p)
 	if ( (packet_content == nullptr) ||
 	     (!mark_packet_complete(p)) ) {
 		if (_ctrl_status == PENDING) {
+			Genode::error(__func__, ":", __LINE__);
 			_ctrl_status = COMPLETE;
 			_ctrl_packet = p;
 		}
 		else {
-			Genode::log("No record of packet and no pending control transfer.");
-			Genode::log("Packet error is ", (int)p.error, " and succeded is ",
-			            p.succeded);
+			Genode::log("No record of packet and no pending control transfer: ", p);
+			iface.release(p);
 		}
+	}
+
+	Genode::error(__func__, ":", __LINE__);
+	if (_calling_task) {
+	Genode::error(__func__, ":", __LINE__);
+		lx_emul_task_unblock((task_struct*)_calling_task);
+		_calling_task = nullptr;
 	}
 	Genode::Signal_transmitter transmit_to_app_handler(app_completion_handler);
 	transmit_to_app_handler.submit();
@@ -233,6 +240,7 @@ int Usb::Lx_wrapper::handle_connect(void *endpoint_buffer, int num_ep,
 	}
 
 	if(_connect_task) _connect_task->unblock();
+	Genode::warning(__func__, ":", __LINE__, ": before schedule()");
 	Lx_kit::env().scheduler.schedule();
 
 	return _return_val;
@@ -280,11 +288,12 @@ int Usb::Lx_wrapper::usb_control_msg(unsigned int pipe, Genode::uint8_t request,
 	Usb::Packet_descriptor p = iface.alloc(size);
 	if (!read)
 		Genode::memcpy(iface.content(p), data, size);
-	iface.control_transfer(p, requesttype, request, value, index, timeout,
-	                       false, this);
 	_ctrl_status = PENDING;
 	_ctrl_task = &Lx_kit::env().scheduler.current();
+	iface.control_transfer(p, requesttype, request, value, index, timeout,
+	                       false, this);
 	while (_ctrl_status == PENDING) {
+		Genode::error(__func__, ":", __LINE__, " _ctrl_status: ", (unsigned)_ctrl_status);
 		lx_emul_task_schedule(true);
 	}
 	_ctrl_status = NONE;
@@ -323,20 +332,31 @@ int Usb::Lx_wrapper::usb_submit_urb(unsigned int pipe, void * buffer,
 	Endpoint & ep = iface.current().endpoint(ep_search);
 
 	Packet_descriptor p = iface.alloc(buf_size);
+		Genode::error(__func__, ":", __LINE__);
 	if ( !(ep.address & 0x80) ) { /* outgoing */
 		Genode::memcpy(iface.content(p), (char *)buffer, buf_size);
 	}
+		Genode::error(__func__, ":", __LINE__);
 	lx_usb_setup_urb(urb, &ep);
 
 	if ( add_packet_with_urb(p, urb, ep_search) ) return 0;
 	if (ep.interrupt()) {
+		Genode::error(__func__, ":", __LINE__);
 		iface.interrupt_transfer(
 			p, ep, Usb::Packet_descriptor::DEFAULT_POLLING_INTERVAL, false,
 			this );
+		Genode::error(__func__, ":", __LINE__);
 		return 0;
 	}
 	else if (ep.bulk()) {
+		Genode::error(__func__, ":", __LINE__);
+		while (!iface.ready_to_submit()) {
+			Genode::error(__func__, ":", __LINE__, " wait for ready_to_submit");
+			kick_complete_task(lx_emul_task_get_current());
+			lx_emul_task_schedule(true);
+		}
 		iface.bulk_transfer( p, ep, false, this );
+		Genode::error(__func__, ":", __LINE__);
 		return 0;
 	}
 	return -1;

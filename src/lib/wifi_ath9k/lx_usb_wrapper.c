@@ -26,8 +26,8 @@ int usb_register_driver(struct usb_driver * new_driver, struct module * owner,
 	(void) owner;
 	(void) mod_name;
 
-	if (strcmp("hif_usb", new_driver->name)) return -1;
-	/* if (strcmp("rt2800usb", new_driver->name)) return -1; */
+	// if (strcmp("hif_usb", new_driver->name)) return -1;
+	// if (strcmp("rt2800usb", new_driver->name)) return -1;
 
 	if (driver_registered) return -1;
 

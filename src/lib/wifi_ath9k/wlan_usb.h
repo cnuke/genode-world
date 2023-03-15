@@ -90,6 +90,7 @@ class Usb::Lx_wrapper : Usb::Completion
 			_ctrl_task = nullptr;
 		}
 		else if(_complete_task) _complete_task->unblock();
+		Genode::warning(__func__, ":", __LINE__, ": before schedule()");
 		Lx_kit::env().scheduler.schedule();
 	}
 
@@ -117,6 +118,20 @@ class Usb::Lx_wrapper : Usb::Completion
 			             lx_emul_usb_conn_struct, default_pid+1,
 			             "lxemul_usbconn", Lx_kit::env().scheduler,
 			             Lx_kit::Task::NORMAL);
+	}
+
+	void *_calling_task { nullptr };
+
+	void kick_complete_task(void *calling_task)
+	{
+		if (_complete_task)
+			_complete_task->unblock();
+
+		if (_calling_task) {
+			Genode::error("calling task already set");
+			return;
+		}
+		_calling_task = calling_task;
 	}
 
 	void send_completions();

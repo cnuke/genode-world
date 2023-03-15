@@ -58,6 +58,7 @@ void _wifi_set_rfkill(bool blocked)
 	lx_emul_rfkill_switch_all(blocked);
 
 	lx_emul_task_unblock(rfkill_task_struct_ptr);
+	Genode::warning(__func__, ":", __LINE__, ": before schedule()");
 	Lx_kit::env().scheduler.schedule();
 
 	/*
@@ -67,6 +68,7 @@ void _wifi_set_rfkill(bool blocked)
 	 * unconditionally and that will bring the netdevice UP again.
 	 */
 	lx_emul_task_unblock(uplink_task_struct_ptr);
+	Genode::warning(__func__, ":", __LINE__, ": before schedule()");
 	Lx_kit::env().scheduler.schedule();
 
 	Genode::Signal_transmitter(_rfkill_sigh_cap).submit();
@@ -86,6 +88,9 @@ extern "C" char const *wifi_ifname(void)
 	return "wlan0";
 }
 
+extern bool __scheduler_backtrace__;
+extern void misuse_submit(void);
+
 struct Wlan
 {
 	Env                    &_env;
@@ -97,14 +102,23 @@ struct Wlan
 	{
 		if (uplink_task_struct_ptr) {
 			lx_emul_task_unblock(uplink_task_struct_ptr);
+			Genode::warning(__func__, ":", __LINE__, ": before schedule()");
 			Lx_kit::env().scheduler.schedule();
+			// if (socketcall_task_struct_ptr)
+			// 	misuse_submit();
+			Genode::warning(__func__, ":", __LINE__, ": after schedule()");
 		}
+
+		while (_env.ep().dispatch_pending_io_signal()) { continue; }
+
 
 		genode_uplink_notify_peers();
 	}
 
 	Wlan(Env &env) : _env { env }
 	{
+		__scheduler_backtrace__ = true;
+
 		genode_uplink_init(genode_env_ptr(_env),
 		                   genode_allocator_ptr(Lx_kit::env().heap),
 		                   genode_signal_handler_ptr(_signal_handler));
@@ -121,6 +135,8 @@ extern "C" void wakeup_wpa(void)
 	static bool called_once = false;
 	if (called_once)
 		return;
+
+	Genode::warning(__func__, ":", __LINE__);
 
 	called_once = true;
 	wpa_blockade->wakeup();

@@ -100,6 +100,8 @@ extern "C" int lx_emul_request_firmware_nowait(const char *name, void **dest, si
 	*dest   = data;
 	*result = fwl->size;
 
+	Genode::error(__func__, ":", __LINE__);
+
 	return 0;
 }
 
