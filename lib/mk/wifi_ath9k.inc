@@ -23,7 +23,6 @@ SRC_C   += uplink.c
 SRC_C   += lx_usb_wrapper.c
 
 CC_OPT_lx_emul/shadow/kernel/softirq += -DKBUILD_MODNAME='"shadow_softirq"'
-SRC_C   += lx_emul/shadow/kernel/softirq.c
 
 CC_OPT_lx_socket_call += -DKBUILD_MODNAME='"lx_socket_call"'
 SRC_C   += lx_socket_call.c
