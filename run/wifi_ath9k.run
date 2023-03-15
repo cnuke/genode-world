@@ -272,13 +272,12 @@ set firmware_modules {
 
 # generic modules
 set boot_modules {
-	core ld.lib.so init timer report_rom dynamic_rom
+	report_rom dynamic_rom
 	vfs_jitterentropy.lib.so
 	libc.lib.so vfs.lib.so libcrypto.lib.so libssl.lib.so
 	wpa_driver_nl80211.lib.so wpa_supplicant.lib.so
 	wifi_ath9k_drv wifi_ath9k.lib.so vfs_wifi_ath9k.lib.so
 	nic_router
-	platform_drv acpi_drv pci_decode
 	test-lwip_httpsrv
 	vfs_lwip.lib.so
 }
