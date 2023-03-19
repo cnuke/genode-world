@@ -246,8 +246,10 @@ int request_firmware(const struct firmware ** firmware_p,
 
 void release_firmware(const struct firmware * fw)
 {
-	lx_emul_release_firmware(fw->data, fw->size);
-	kfree(fw);
+	if (fw) {
+		lx_emul_release_firmware(fw->data, fw->size);
+		kfree(fw);
+	}
 }
 
 
