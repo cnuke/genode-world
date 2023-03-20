@@ -46,6 +46,7 @@ Firmware_list fw_list[] = {
 	{ "iwlwifi-QuZ-a0-hr-b0-63.ucode", 1334804, nullptr },
 	{ "iwlwifi-QuZ-a0-hr-b0-64.ucode", 1334804, "iwlwifi-QuZ-a0-hr-b0-63.ucode" },
 	{ "ath9k_htc/htc_9271-1.4.0.fw", 51008, "htc_9271-1.4.0.fw"},
+	{"rt2870.bin", 8192, "rt2870.bin"},
 };
 
 

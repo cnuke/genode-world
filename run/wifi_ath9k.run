@@ -233,7 +233,7 @@ append config {
 		</config>
 		<route>
 			<service name="Uplink"> <child name="nic_router"/> </service>
-			<service name="Usb"> <child name="usb_host_drv"/> </service>
+			<service name="Usb"> <child name="usb_host_drv" label="wifi_drv"/> </service>
 			<service name="Platform"> <child name="usb_host_drv"/> </service>
 			<service name="Report" label="accesspoints"> <child name="accesspoints_report_rom"/> </service>
 			<service name="Report" label="state"> <child name="state_report_rom"/> </service>
@@ -253,8 +253,9 @@ set fd [open [run_dir]/genode/usb_host_drv.config w]
 puts $fd {
 	<config>
 		<report devices="yes"/>
-		<default-policy vendor_id="0x0cf3" product_id="0x9271"/>
-		<default-policy vendor_id="0x07d1" product_id="0x3c16"/>
+		<!--policy label="wifi_drv" vendor_id="0x0cf3" product_id="0x9271"/>
+		<policy label="wifi_drv" vendor_id="0x07d1" product_id="0x3c16"/-->
+		<policy label="wifi_drv" vendor_id="0x050d" product_id="0x1103"/>
 	</config>
 }
 close $fd
@@ -263,6 +264,7 @@ set firmware_modules {
 	regulatory.db
 	regulatory.db.p7s
 	htc_9271-1.4.0.fw
+	rt2870.bin
 }
 
 #
@@ -290,6 +292,7 @@ append qemu_args " -nographic "
 append qemu_args " -device nec-usb-xhci,id=xhci "
 append qemu_args " -device usb-host,bus=xhci.0,vendorid=0x0cf3,productid=0x9271"
 append qemu_args " -device usb-host,bus=xhci.0,vendorid=0x07d1,productid=0x3c16"
+append qemu_args " -device usb-host,bus=xhci.0,vendorid=0x050d,productid=0x1103"
 
 run_genode_until forever
 

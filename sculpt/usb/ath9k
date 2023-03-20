@@ -11,4 +11,6 @@
 		<policy label_suffix="teensy" vendor_id="0x16c0" product_id="0x0478"/>
 		-->
 		<policy label_suffix="wifi" vendor_id="0x0cf3" product_id="0x9271"/>
+    <policy label_suffix="wifi" vendor_id="0x07d1" product_id="0x3c16"/>
+    <policy label_suffix="wifi" vendor_id="0x050d" product_id="0x1103"/>
 </usb>
