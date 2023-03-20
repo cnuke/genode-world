@@ -82,10 +82,7 @@ void Genode::Wlan_usb::handle_state_change()
 			}
 		}
 	}
-	int handle_result = lx_usb_wrap.handle_connect(lx_ep_buffer, num_ep,
-	                                               usb.plugged());
-
-	log("Result of handle_connect: ", handle_result);
+	lx_usb_wrap.handle_connect(lx_ep_buffer, num_ep, usb.plugged());
 }
 
 bool Usb::Lx_wrapper::add_packet_with_urb(Packet_descriptor & p, void * urb,
@@ -264,8 +261,6 @@ int Usb::Lx_wrapper::usb_control_msg(unsigned int pipe, Genode::uint8_t request,
                                      Genode::uint16_t index, void * data,
                                      Genode::uint16_t size, int timeout)
 {
-	(void) pipe; /* Genode doesn't support control transfer to non-default EP? */
-
 	if ( _ctrl_status != NONE ) {
 		Genode::error("Attempt to submit a synchronous control message before"
 		              " the previous one completed.");
@@ -277,11 +272,12 @@ int Usb::Lx_wrapper::usb_control_msg(unsigned int pipe, Genode::uint8_t request,
 	Usb::Interface &iface = _dev.interface(0);
 
 	Usb::Packet_descriptor p = iface.alloc(size);
-	Genode::memcpy(iface.content(p), data, size);
-	iface.control_transfer(p, requesttype, request, value, index, timeout,
-	                       false, this);
+	if (!(pipe & Usb::ENDPOINT_IN))
+		Genode::memcpy(iface.content(p), data, size);
 	_ctrl_status = PENDING;
 	_ctrl_task = &Lx_kit::env().scheduler.current();
+	iface.control_transfer(p, requesttype, request, value, index, timeout,
+	                       false, this);
 	while (_ctrl_status == PENDING) {
 		lx_emul_task_schedule(true);
 	}
@@ -291,9 +287,10 @@ int Usb::Lx_wrapper::usb_control_msg(unsigned int pipe, Genode::uint8_t request,
 		Genode::error("Error in usb_control_msg.");
 		return -1;
 	}
-	else {
-		return size;
-	}
+	
+	if (pipe & Usb::ENDPOINT_IN)
+		Genode::memcpy(data, iface.content(p), size);
+	return size;
 }
 
 int Usb::Lx_wrapper::usb_submit_urb(unsigned int pipe, void * buffer,
