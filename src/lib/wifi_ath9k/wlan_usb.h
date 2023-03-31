@@ -47,18 +47,26 @@ class Usb::Lx_wrapper : Usb::Completion
 	int    _return_val = 0;
 
 	enum ControlStatus {
-		NONE, PENDING, COMPLETE,
+		NONE, PENDING_OUT, PENDING_IN, COMPLETE,
 	};
 
 	ControlStatus _ctrl_status = NONE;
 	Packet_descriptor _ctrl_packet = { };
+	struct {
+		Genode::uint8_t request;
+    	Genode::uint8_t requesttype;
+    	Genode::uint16_t value;
+		Genode::uint16_t index;
+		int timeout;
+	} _ctrl_out_data = { };
 
 	enum {
-		PACKET_URB_MAP_SIZE = 256
+		PACKET_URB_MAP_SIZE = 256,
+		MAX_ENDPOINTS = 32,
 	};
 
-	Signal_handler<Lx_wrapper> app_completion_handler =
-		{_ep, *this, &Lx_wrapper::app_handle_complete };
+	Signal_handler<Lx_wrapper> send_recv_handler =
+		{_ep, *this, &Lx_wrapper::send_and_receive };
 
 	struct Packet_urb_map
 	{
@@ -74,24 +82,35 @@ class Usb::Lx_wrapper : Usb::Completion
 	} packet_map[PACKET_URB_MAP_SIZE] = { };
 	int next_packet = 0;
 	static int constexpr max_incoming = 1;
-	static int constexpr ep_val_for_intr_in = 2;
-	int pending_incoming = 0;
-	int queued_incoming = 0;
+	int pending_packets[MAX_ENDPOINTS] = { };
+	int queued_packets[MAX_ENDPOINTS] = { };
+	int available_work = 0;
 	bool pending_connection = false;
 	bool pending_disconnection = false;
 
-	bool add_packet_with_urb(Packet_descriptor & p, void * urb, int ep_index);
+	void add_packet_with_urb(Packet_descriptor & p, void * urb, int ep_index,
+	                         bool incoming);
 	bool mark_packet_complete(Packet_descriptor & p);
 
-	void app_handle_complete()
+	/*void app_handle_complete()
 	{
-		if ( _ctrl_status == COMPLETE ) {
+		
+		if ( _ctrl_status == PENDING_OUT ) {
+			Usb::Interface &iface = _dev.interface(0);
+
+			_ctrl_status = PENDING_IN;
+			iface.control_transfer(_ctrl_packet, _ctrl_out_data.requesttype,
+			                       _ctrl_out_data.request, _ctrl_out_data.value,
+			                       _ctrl_out_data.index, _ctrl_out_data.timeout,
+	                               false, this);
+		}
+		else if ( _ctrl_status == COMPLETE ) {
 			if(_ctrl_task) _ctrl_task->unblock();
 			_ctrl_task = nullptr;
 		}
 		else if(_complete_task) _complete_task->unblock();
 		Lx_kit::env().scheduler.schedule();
-	}
+	}*/
 
   public:
 
@@ -119,6 +138,7 @@ class Usb::Lx_wrapper : Usb::Completion
 			             Lx_kit::Task::NORMAL);
 	}
 
+	void send_and_receive();
 	void send_completions();
 	void complete(Usb::Packet_descriptor & p) override;
 	int handle_connect(void *endpoint_buffer, int num_ep, bool connected);
@@ -129,7 +149,7 @@ class Usb::Lx_wrapper : Usb::Completion
 	                    Genode::uint16_t size, int timeout);
 
 	int usb_submit_urb(unsigned int pipe, void * buffer, Genode::uint32_t buf_size, void * urb);
-	void usb_submit_queued_urb(Packet_descriptor &p, int ep_index);
+	void usb_submit_queued_urb(Packet_descriptor &p, Endpoint &ep);
 
 	Genode::size_t endpoint_desc_size()
 	{

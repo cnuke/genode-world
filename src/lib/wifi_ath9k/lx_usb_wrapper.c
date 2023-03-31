@@ -13,6 +13,8 @@
 
 #include <linux/usb.h>
 
+#include <lx_emul/time.h>
+
 enum {
 	NUM_DRIVERS = 2,
 };
@@ -65,6 +67,7 @@ int usb_control_msg(struct usb_device * dev, unsigned int pipe, __u8 request,
 					__u8 requesttype, __u16 value, __u16 index, void * data,
 					__u16 size, int timeout)
 {
+	/*printk("Control message, jiffies is %ld, HZ is %ld.\n", jiffies, (long)HZ);*/
 	return cxx_usb_control_msg(cxx_context_ptr, pipe, request, requesttype,
                                value, index, data, size, timeout);
 }
@@ -131,6 +134,10 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 
 	if ( atomic_read(&urb->reject) ) return -EPERM;
 
+	/*printk("Submitting urb, old jiffies is %ld.\n", jiffies);*/
+	lx_emul_time_handle();
+	/*printk("Updated jiffies is %ld,\n", jiffies);*/
+
 	usb_get_urb(urb);
 	atomic_inc(&urb->use_count);
 
@@ -142,6 +149,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		atomic_dec(&urb->use_count);
 		usb_put_urb(urb);
 	}
+
 	return return_val;
 }
 
@@ -158,6 +166,8 @@ void lx_usb_do_urb_callback(void * in_urb, int succeeded, int inbound, void * bu
 	}
 	else urb->status = -1;
 	urb->actual_length = buf_size;
+
+	/*printk("Calling the completion, jiffies is %ld.\n", jiffies);*/
 
 	usb_unanchor_urb(urb);
 	urb->complete(urb);

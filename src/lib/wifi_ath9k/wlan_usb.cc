@@ -85,8 +85,8 @@ void Genode::Wlan_usb::handle_state_change()
 	lx_usb_wrap.handle_connect(lx_ep_buffer, num_ep, usb.plugged());
 }
 
-bool Usb::Lx_wrapper::add_packet_with_urb(Packet_descriptor & p, void * urb,
-                                          int ep_index )
+void Usb::Lx_wrapper::add_packet_with_urb(Packet_descriptor & p, void * urb,
+                                          int ep_index, bool incoming )
 {
 	int i;
 
@@ -98,23 +98,19 @@ bool Usb::Lx_wrapper::add_packet_with_urb(Packet_descriptor & p, void * urb,
 			packet_map[search].urb = urb;
 			packet_map[search].ep_index = (Genode::uint8_t)ep_index;
 
-			if (ep_index == ep_val_for_intr_in) {
-				/* incoming interrupt must be queued */
-				if ( pending_incoming < max_incoming ) {
-					pending_incoming++;
-					packet_map[search].complete = Packet_urb_map::PENDING;
-					return false;
-				}
-				else {
-					queued_incoming++;
-					packet_map[search].complete = Packet_urb_map::QUEUED;
-					return true;
-				}
+			queued_packets[ep_index]++;
+			if (incoming) {
+				int places_available = max_incoming - pending_packets[ep_index];
+				if (queued_packets[ep_index] <= places_available)
+					available_work++;
 			}
-			else {
-				packet_map[search].complete = Packet_urb_map::PENDING;
-				return false;
-			}
+			else available_work++;
+			packet_map[search].complete = Packet_urb_map::QUEUED;
+			Genode::Signal_transmitter transmitter(send_recv_handler);
+			transmitter.submit();
+			/*Genode::log("Packet added in position ", search, " at ", Lx_kit::env().timer.curr_time().trunc_to_plain_us(), " ep_index ", ep_index,
+				" queued_packets ", queued_packets[ep_index], " incoming ", incoming);*/
+			return;
 		}
 	}
 	Genode::error("Attempt to add more packets than queue allows.");
@@ -128,66 +124,136 @@ bool Usb::Lx_wrapper::mark_packet_complete(Packet_descriptor & p)
 	void * packet = iface.content(p);
 
 	for (i = PACKET_URB_MAP_SIZE; i > 0; --i) {
-		int search = (i + next_packet) % PACKET_URB_MAP_SIZE;
+		int search = (i + next_packet - 1) % PACKET_URB_MAP_SIZE;
 		void * search_packet = iface.content(packet_map[search].p);
 		if ((search_packet == packet) &&
 		    (packet_map[search].complete == Packet_urb_map::PENDING) )
 		{
 			packet_map[search].complete = Packet_urb_map::COMPLETE;
 			packet_map[search].p        = p;
+			Genode::uint8_t ep_index = packet_map[search].ep_index;
+			int places_available = max_incoming - pending_packets[ep_index]--;
+			/* increment available work if there were more queued packets than 
+			 * available space */
+			if (queued_packets[ep_index] > places_available)
+				available_work++;
+			/*Genode::log("Marking complete packet in position ", search, " ep_index ", ep_index, " pending_packets ", pending_packets[ep_index]);*/
 			return true;
 		}
 	}
 	return false;
 }
 
+void Usb::Lx_wrapper::send_and_receive()
+{
+	int i;
+
+	/* guard against device being disconnected */
+	Usb::Interface * iface;
+	if ( !_dev.config ) {
+		iface = nullptr;
+		/* recompute available work */
+		available_work = 0;
+		for (i = 0; i < MAX_ENDPOINTS; ++i) {
+			available_work += queued_packets[i];
+		}
+	}
+	else {
+		iface = &_dev.interface(0);
+	}
+
+	/* process as much sending as we can */
+	for (i = 0; available_work > 0; ++i) {
+		int search = (i + next_packet + 1) % PACKET_URB_MAP_SIZE;
+		if ( packet_map[search].complete == Packet_urb_map::QUEUED) {
+			if (iface) {
+				int ep_index = packet_map[search].ep_index;
+				Endpoint & ep = iface->current().endpoint(ep_index);
+				bool incoming = ep.address & 0x80;
+				if (!incoming || pending_packets[ep_index] < max_incoming) {
+					packet_map[search].complete = Packet_urb_map::PENDING;
+					pending_packets[ep_index]++;
+					queued_packets[ep_index]--;
+					available_work--;
+					/*Genode::log("Submitting queued packet in position ", search, " at ", Lx_kit::env().timer.curr_time().trunc_to_plain_us(),
+						" ep_index ", ep_index, " queued_packets ", queued_packets[ep_index], " pending packets ", pending_packets[ep_index], " incoming ", incoming);*/
+					usb_submit_queued_urb(packet_map[search].p, ep);
+				}
+			}
+			else {
+				/* disconnected, just return an error */
+				packet_map[search].complete = Packet_urb_map::COMPLETE;
+				packet_map[search].p.succeded = false;
+			}
+		}
+	}
+	
+
+	/* send completions and handle control transfers */
+	if ( _ctrl_status == PENDING_OUT ) {
+		Usb::Interface &iface = _dev.interface(0);
+
+		_ctrl_status = PENDING_IN;
+		iface.control_transfer(_ctrl_packet, _ctrl_out_data.requesttype,
+		                       _ctrl_out_data.request, _ctrl_out_data.value,
+		                       _ctrl_out_data.index, _ctrl_out_data.timeout,
+		                       false, this);
+	}
+	else if(_ctrl_status == COMPLETE) {
+		if (_ctrl_task) _ctrl_task->unblock();
+		_ctrl_task = nullptr;
+	}
+		
+	if(_complete_task) _complete_task->unblock();
+	
+	Lx_kit::env().scheduler.schedule();
+}
+
 void Usb::Lx_wrapper::send_completions()
 {
 	int i;
-	int saved_next_packet;
 
 	/* guard against device being disconnected */
-	if ( !_dev.config ) return; 
-	Usb::Interface & iface = _dev.interface(0);
+	Usb::Interface * iface;
+	if ( !_dev.config )
+		iface = nullptr;
+	else
+		iface = &_dev.interface(0);
 
-	do {
-		saved_next_packet = next_packet;
-		for (i = 0; i < PACKET_URB_MAP_SIZE; ++i) {
-			int search = (i + saved_next_packet) % PACKET_URB_MAP_SIZE;
-			if ( packet_map[search].complete == Packet_urb_map::COMPLETE) {
-				void * packet = iface.content(packet_map[search].p);
+	for (i = 0; i < PACKET_URB_MAP_SIZE; ++i) {
+		int search = (i + next_packet + 1) % PACKET_URB_MAP_SIZE;
+		if ( packet_map[search].complete == Packet_urb_map::COMPLETE) {
+			if (iface) {
+				void * packet = iface->content(packet_map[search].p);
+				/*Genode::log("Completion submitted in position ", search, " at ", Lx_kit::env().timer.curr_time().trunc_to_plain_us());*/
 				lx_usb_do_urb_callback(packet_map[search].urb,
 									packet_map[search].p.succeded,
-									packet_map[search].p.transfer.ep & 0x80,
+									packet_map[search].p.read_transfer(),
 									packet,
 									packet_map[search].p.transfer.actual_size);
-				iface.release(packet_map[search].p);
-				if ( packet_map[search].ep_index == ep_val_for_intr_in ) {
-					pending_incoming--;
-				}
-				packet_map[search].complete = Packet_urb_map::AVAILABLE;
+				iface->release(packet_map[search].p);
 			}
-			else if ( pending_incoming < max_incoming &&
-						packet_map[search].complete == Packet_urb_map::QUEUED)
-			{
-				packet_map[search].complete = Packet_urb_map::PENDING;
-				queued_incoming--;
-				pending_incoming++;
-				usb_submit_queued_urb(packet_map[search].p,
-				                      packet_map[search].ep_index);
+			else { /* iface is invalid, send completion with error */
+				lx_usb_do_urb_callback(packet_map[search].urb,
+				                       false,
+				                       packet_map[search].p.read_transfer(),
+				                       nullptr, 0);
 			}
+			packet_map[search].complete = Packet_urb_map::AVAILABLE;
 		}
-	} while (pending_incoming < max_incoming && queued_incoming > 0);
+	}
 }
 
 void Usb::Lx_wrapper::complete(Usb::Packet_descriptor & p)
 {	
+	
 	Usb::Interface &iface = _dev.interface(0);
 
+	/*Genode::log("Completion called at ", Lx_kit::env().timer.curr_time().trunc_to_plain_us());*/
 	void * packet_content = iface.content(p);
 	if ( (packet_content == nullptr) ||
 	     (!mark_packet_complete(p)) ) {
-		if (_ctrl_status == PENDING) {
+		if (_ctrl_status == PENDING_IN) {
 			_ctrl_status = COMPLETE;
 			_ctrl_packet = p;
 		}
@@ -197,8 +263,8 @@ void Usb::Lx_wrapper::complete(Usb::Packet_descriptor & p)
 			            p.succeded);
 		}
 	}
-	Genode::Signal_transmitter transmit_to_app_handler(app_completion_handler);
-	transmit_to_app_handler.submit();
+	Genode::Signal_transmitter transmitter(send_recv_handler);
+	transmitter.submit();
 }
 
 int Usb::Lx_wrapper::handle_connect(void *endpoint_buffer, int num_ep,
@@ -213,6 +279,7 @@ int Usb::Lx_wrapper::handle_connect(void *endpoint_buffer, int num_ep,
 
 	if (!connected) {
 		pending_disconnection = true;
+		send_and_receive();
 	}
 	else {
 		for (int i = 0; i < num_ep; ++i)
@@ -274,11 +341,20 @@ int Usb::Lx_wrapper::usb_control_msg(unsigned int pipe, Genode::uint8_t request,
 	Usb::Packet_descriptor p = iface.alloc(size);
 	if (!(pipe & Usb::ENDPOINT_IN))
 		Genode::memcpy(iface.content(p), data, size);
-	_ctrl_status = PENDING;
-	_ctrl_task = &Lx_kit::env().scheduler.current();
-	iface.control_transfer(p, requesttype, request, value, index, timeout,
-	                       false, this);
-	while (_ctrl_status == PENDING) {
+	_ctrl_status = PENDING_OUT;
+	_ctrl_packet = p;
+	/* The control transfer will call wait_and_dispatch_one_io_signal. This in
+	 * turn can trigger timeouts, which get then get run on our stack. This can
+	 * subsequently run the Linux scheduler, creating an invalid stack.
+	 * Therefore, what we have to do is schedule an application-level Genode
+	 * handler, and break out of Linux emulation with lx_emul_task_schedule. */
+	_ctrl_out_data = { request, requesttype, value, index, timeout };
+	Genode::Signal_transmitter transmit_to_app_handler(send_recv_handler);
+	transmit_to_app_handler.submit();
+	/*iface.control_transfer(p, requesttype, request, value, index, timeout,
+	                       false, this);*/
+	while (_ctrl_status != COMPLETE) {
+		_ctrl_task = &Lx_kit::env().scheduler.current();
 		lx_emul_task_schedule(true);
 	}
 	_ctrl_status = NONE;
@@ -316,13 +392,16 @@ int Usb::Lx_wrapper::usb_submit_urb(unsigned int pipe, void * buffer,
 	Endpoint & ep = iface.current().endpoint(ep_search);
 
 	Packet_descriptor p = iface.alloc(buf_size);
-	if ( !(ep.address & 0x80) ) { /* outgoing */
+	bool incoming = ep.address & 0x80;
+	if ( !(incoming) ) { /* outgoing */
 		Genode::memcpy(iface.content(p), (char *)buffer, buf_size);
 	}
 	lx_usb_setup_urb(urb, &ep);
 
-	if ( add_packet_with_urb(p, urb, ep_search) ) return 0;
-	if (ep.interrupt()) {
+	add_packet_with_urb(p, urb, ep_search, incoming);
+
+	return 0;
+	/*if (ep.interrupt()) {
 		iface.interrupt_transfer(
 			p, ep, Usb::Packet_descriptor::DEFAULT_POLLING_INTERVAL, false,
 			this );
@@ -332,15 +411,22 @@ int Usb::Lx_wrapper::usb_submit_urb(unsigned int pipe, void * buffer,
 		iface.bulk_transfer( p, ep, false, this );
 		return 0;
 	}
-	return -1;
+	return -1;*/
 }
 
-void Usb::Lx_wrapper::usb_submit_queued_urb(Packet_descriptor &p, int ep_index)
+void Usb::Lx_wrapper::usb_submit_queued_urb(Packet_descriptor &p, Endpoint &ep)
 {
 	Usb::Interface &iface = _dev.interface(0);
-	Usb::Endpoint &ep = iface.current().endpoint(ep_index);
-	iface.interrupt_transfer(
-		p, ep, Usb::Packet_descriptor::DEFAULT_POLLING_INTERVAL, false, this );
+
+	if (ep.interrupt()) {
+		iface.interrupt_transfer(
+			p, ep, Usb::Packet_descriptor::DEFAULT_POLLING_INTERVAL, false,
+			this );
+	}
+	else if (ep.bulk()) {
+		iface.bulk_transfer( p, ep, false, this );
+	}
+	/* do not support isoch endpoints... */
 }
 
 extern "C" int cxx_usb_control_msg(void *context_ptr, unsigned int pipe,
