@@ -132,11 +132,13 @@ bool Usb::Lx_wrapper::mark_packet_complete(Packet_descriptor & p)
 			packet_map[search].complete = Packet_urb_map::COMPLETE;
 			packet_map[search].p        = p;
 			Genode::uint8_t ep_index = packet_map[search].ep_index;
-			int places_available = max_incoming - pending_packets[ep_index]--;
-			/* increment available work if there were more queued packets than 
-			 * available space */
-			if (queued_packets[ep_index] > places_available)
-				available_work++;
+			if (p.read_transfer()) {
+				int places_available = max_incoming - pending_packets[ep_index]--;
+				/* increment available work if there were more queued packets than 
+				* available space */
+				if (queued_packets[ep_index] > places_available)
+					available_work++;
+			}
 			/*Genode::log("Marking complete packet in position ", search, " ep_index ", ep_index, " pending_packets ", pending_packets[ep_index]);*/
 			return true;
 		}
@@ -184,6 +186,12 @@ void Usb::Lx_wrapper::send_and_receive()
 				/* disconnected, just return an error */
 				packet_map[search].complete = Packet_urb_map::COMPLETE;
 				packet_map[search].p.succeded = false;
+			}
+		}
+		if (i > 0 && i % (10*PACKET_URB_MAP_SIZE) == 0) {
+			Genode::log("Probably stuck in send_and_receive() with available_work ", available_work);
+			for (int j = 0; j < MAX_ENDPOINTS; ++j) {
+				Genode::log("pending_packets[", j, "] = ", pending_packets[j], ", queued_packets[", j, "] = ", queued_packets[j]);
 			}
 		}
 	}
