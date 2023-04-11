@@ -128,6 +128,7 @@ int cxx_usb_submit_urb(void * context_ptr, unsigned int pipe, void * buffer, u32
 int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 {
 	int return_val;
+	unsigned int genode_pipe;
 	(void) mem_flags;
 
 	if ( !urb || !urb->complete) return -EINVAL;
@@ -141,8 +142,11 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	usb_get_urb(urb);
 	atomic_inc(&urb->use_count);
 
+	genode_pipe = usb_pipeendpoint(urb->pipe);
+	if (usb_pipein(urb->pipe)) genode_pipe |= USB_DIR_IN;
+
 	return_val = cxx_usb_submit_urb(cxx_context_ptr,
-	                                usb_pipeendpoint(urb->pipe),
+	                                genode_pipe,
 	                                urb->transfer_buffer,
 	                                urb->transfer_buffer_length, (void *)urb);
 	if (return_val) {

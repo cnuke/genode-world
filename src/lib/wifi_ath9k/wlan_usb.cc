@@ -11,6 +11,37 @@
 * version 2.
 */
 
+/*#define WLAN_USB_VERBOSE*/
+
+/** Notes - places where the Linux scheduler can be invoked 
+ * 
+ * repos/dde_linux:
+ * In Lx_kit::Timeout::_handle
+ * 		this is probably safe because the time handler runs
+ * In Device::Irq::_handle()
+ * 		hopefully this never happens for a USB driver
+ * In Genode::Global_irq_controller::trigger_irq
+ * 		hopefully this never happens for a USB driver
+ * In lx_emul_execute_kernel_until
+ * 		only called from the USB HC driver AFAICT
+ * In lx_emul_start_kernel
+ * 		only called once at the beginning
+ * 
+ * repos/world/src/lib/wifi_ath9k
+ * In Lx::Socket::_handle
+ * 		this is a risk and maybe should be protected
+ * In wifi_kick_socketcall
+ * 		this is a risk and maybe should be protected
+ * In Usb::Lx_wrapper::send_and_receive
+ * 		this is a risk and maybe should be protected
+ * In Usb::Lx_wrapper::handle_connect
+ * 		this is a small risk but maybe should still be protected
+ * In _wifi_set_rfkill (x2)
+ * 		this is a small risk but maybe should still be protected
+ * In Wlan::_handle_signal()
+ * 		this is a risk and maybe should be protected
+*/
+
 #include <lx_emul/task.h>
 
 #include "wlan_usb.h"
@@ -108,8 +139,10 @@ void Usb::Lx_wrapper::add_packet_with_urb(Packet_descriptor & p, void * urb,
 			packet_map[search].complete = Packet_urb_map::QUEUED;
 			Genode::Signal_transmitter transmitter(send_recv_handler);
 			transmitter.submit();
-			/*Genode::log("Packet added in position ", search, " at ", Lx_kit::env().timer.curr_time().trunc_to_plain_us(), " ep_index ", ep_index,
-				" queued_packets ", queued_packets[ep_index], " incoming ", incoming);*/
+			#ifdef WLAN_USB_VERBOSE
+			Genode::log("Packet added in position ", search, " at ", Lx_kit::env().timer.curr_time().trunc_to_plain_us(), " ep_index ", ep_index,
+				" queued_packets ", queued_packets[ep_index], " incoming ", incoming);
+			#endif
 			return;
 		}
 	}
@@ -139,7 +172,9 @@ bool Usb::Lx_wrapper::mark_packet_complete(Packet_descriptor & p)
 				if (queued_packets[ep_index] > places_available)
 					available_work++;
 			}
-			/*Genode::log("Marking complete packet in position ", search, " ep_index ", ep_index, " pending_packets ", pending_packets[ep_index]);*/
+			#ifdef WLAN_USB_VERBOSE
+				Genode::log("Marking complete packet in position ", search, " ep_index ", ep_index, " pending_packets ", pending_packets[ep_index]);
+			#endif
 			return true;
 		}
 	}
@@ -177,8 +212,10 @@ void Usb::Lx_wrapper::send_and_receive()
 					pending_packets[ep_index]++;
 					queued_packets[ep_index]--;
 					available_work--;
-					/*Genode::log("Submitting queued packet in position ", search, " at ", Lx_kit::env().timer.curr_time().trunc_to_plain_us(),
-						" ep_index ", ep_index, " queued_packets ", queued_packets[ep_index], " pending packets ", pending_packets[ep_index], " incoming ", incoming);*/
+					#ifdef WLAN_USB_VERBOSE
+						Genode::log("Submitting queued packet in position ", search, " at ", Lx_kit::env().timer.curr_time().trunc_to_plain_us(),
+							" ep_index ", ep_index, " queued_packets ", queued_packets[ep_index], " pending packets ", pending_packets[ep_index], " incoming ", incoming);
+					#endif
 					usb_submit_queued_urb(packet_map[search].p, ep);
 				}
 			}
@@ -189,9 +226,9 @@ void Usb::Lx_wrapper::send_and_receive()
 			}
 		}
 		if (i > 0 && i % (10*PACKET_URB_MAP_SIZE) == 0) {
-			Genode::log("Probably stuck in send_and_receive() with available_work ", available_work);
+			Genode::warning("Probably stuck in send_and_receive() with available_work ", available_work);
 			for (int j = 0; j < MAX_ENDPOINTS; ++j) {
-				Genode::log("pending_packets[", j, "] = ", pending_packets[j], ", queued_packets[", j, "] = ", queued_packets[j]);
+				Genode::warning("pending_packets[", j, "] = ", pending_packets[j], ", queued_packets[", j, "] = ", queued_packets[j]);
 			}
 		}
 	}
@@ -214,6 +251,7 @@ void Usb::Lx_wrapper::send_and_receive()
 		
 	if(_complete_task) _complete_task->unblock();
 	
+	Lx_kit::env().scheduler.unblock_time_handler();
 	Lx_kit::env().scheduler.schedule();
 }
 
@@ -233,7 +271,9 @@ void Usb::Lx_wrapper::send_completions()
 		if ( packet_map[search].complete == Packet_urb_map::COMPLETE) {
 			if (iface) {
 				void * packet = iface->content(packet_map[search].p);
-				/*Genode::log("Completion submitted in position ", search, " at ", Lx_kit::env().timer.curr_time().trunc_to_plain_us());*/
+				#ifdef WLAN_USB_VERBOSE
+					Genode::log("Completion submitted in position ", search, " at ", Lx_kit::env().timer.curr_time().trunc_to_plain_us());
+				#endif
 				lx_usb_do_urb_callback(packet_map[search].urb,
 									packet_map[search].p.succeded,
 									packet_map[search].p.read_transfer(),
@@ -257,7 +297,6 @@ void Usb::Lx_wrapper::complete(Usb::Packet_descriptor & p)
 	
 	Usb::Interface &iface = _dev.interface(0);
 
-	/*Genode::log("Completion called at ", Lx_kit::env().timer.curr_time().trunc_to_plain_us());*/
 	void * packet_content = iface.content(p);
 	if ( (packet_content == nullptr) ||
 	     (!mark_packet_complete(p)) ) {
@@ -266,8 +305,8 @@ void Usb::Lx_wrapper::complete(Usb::Packet_descriptor & p)
 			_ctrl_packet = p;
 		}
 		else {
-			Genode::log("No record of packet and no pending control transfer.");
-			Genode::log("Packet error is ", (int)p.error, " and succeded is ",
+			Genode::warning("No record of packet and no pending control transfer.");
+			Genode::warning("Packet error is ", (int)p.error, " and succeded is ",
 			            p.succeded);
 		}
 	}
@@ -305,6 +344,7 @@ int Usb::Lx_wrapper::handle_connect(void *endpoint_buffer, int num_ep,
 	}
 
 	if(_connect_task) _connect_task->unblock();
+	Lx_kit::env().scheduler.unblock_time_handler();
 	Lx_kit::env().scheduler.schedule();
 
 	return _return_val;
@@ -377,9 +417,13 @@ int Usb::Lx_wrapper::usb_control_msg(unsigned int pipe, Genode::uint8_t request,
 	return size;
 }
 
+extern "C" void lx_emul_trace_and_stop(const char *);
 int Usb::Lx_wrapper::usb_submit_urb(unsigned int pipe, void * buffer,
                                     Genode::uint32_t buf_size, void * urb)
 {
+	#ifdef WLAN_USB_VERBOSE
+		Genode::log("Submitting urb.");
+	#endif
 	/* check against disconnected device */
 	if ( !_dev.config ) return -1;
 	Usb::Interface &iface = _dev.interface(0);
@@ -388,12 +432,13 @@ int Usb::Lx_wrapper::usb_submit_urb(unsigned int pipe, void * buffer,
 	int i;
 
 	for (i = 0; i < num_ep; ++i) {
-		ep_search = (i + pipe - 1) % num_ep;
-		if ((iface.current().endpoint(ep_search).address & 0xF) == pipe) break;
+		ep_search = (i + (pipe & 0xF) - 1) % num_ep;
+		if (iface.current().endpoint(ep_search).address == pipe) break;
 	}
 	if (i >= num_ep) {
-		Genode::error("Attempt to send on a pipe ( ", pipe,
+		Genode::error("Attempt to send on a pipe ( ", Genode::Hex(pipe),
 		              " ) I couldn't find.");
+		lx_emul_trace_and_stop("USB failure");
 		return -1;
 	}
 

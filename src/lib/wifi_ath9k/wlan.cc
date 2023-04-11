@@ -67,6 +67,7 @@ void _wifi_set_rfkill(bool blocked)
 	 * unconditionally and that will bring the netdevice UP again.
 	 */
 	lx_emul_task_unblock(uplink_task_struct_ptr);
+	Lx_kit::env().scheduler.unblock_time_handler();
 	Lx_kit::env().scheduler.schedule();
 
 	Genode::Signal_transmitter(_rfkill_sigh_cap).submit();
@@ -97,6 +98,7 @@ struct Wlan
 	{
 		if (uplink_task_struct_ptr) {
 			lx_emul_task_unblock(uplink_task_struct_ptr);
+			Lx_kit::env().scheduler.unblock_time_handler();
 			Lx_kit::env().scheduler.schedule();
 		}
 
@@ -121,6 +123,10 @@ void wifi_init(Genode::Env      &env,
                Genode::Blockade &blockade)
 {
 	wpa_blockade = &blockade;
+
+	/*int volatile dontrun = 1;
+	int volatile * volatile dontrun_access = &dontrun;
+	while (*dontrun_access) { }*/
 
 	static Wlan wlan(env);
 }
