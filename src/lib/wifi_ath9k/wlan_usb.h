@@ -151,9 +151,18 @@ class Usb::Lx_wrapper : Usb::Completion
 	int usb_submit_urb(unsigned int pipe, void * buffer, Genode::uint32_t buf_size, void * urb);
 	void usb_submit_queued_urb(Packet_descriptor &p, Endpoint &ep);
 
-	Genode::size_t endpoint_desc_size()
+	inline Genode::size_t endpoint_desc_size()
 	{
 		return lx_usb_host_endpoint_size();
+	}
+
+	inline void * endpoint_desc_at_index(int index)
+	{
+		if (!_endpoint_buffer) return nullptr;
+
+		char * buffer_base = (char *)_endpoint_buffer;
+		buffer_base += index*endpoint_desc_size();
+		return (void *)buffer_base;
 	}
 };
 

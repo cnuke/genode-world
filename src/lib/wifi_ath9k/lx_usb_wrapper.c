@@ -280,7 +280,8 @@ size_t lx_usb_host_endpoint_size(void)
 void * lx_usb_host_to_epdesc(void *in_host)
 {
 	struct usb_host_endpoint *in_host_cast = (struct usb_host_endpoint *)in_host;
-	return (void *)&in_host_cast->desc;
+	if (!in_host) return NULL;
+	else return (void *)&in_host_cast->desc;
 }
 
 

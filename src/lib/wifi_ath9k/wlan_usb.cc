@@ -331,11 +331,8 @@ int Usb::Lx_wrapper::handle_connect(void *endpoint_buffer, int num_ep,
 	else {
 		for (int i = 0; i < num_ep; ++i)
 		{
-			char *buffer_base = (char *)_endpoint_buffer
-			                    + i*lx_usb_host_endpoint_size();
-
 			auto buffer_desc = (Endpoint_descriptor *) lx_usb_host_to_epdesc(
-				(void *)buffer_base );
+				endpoint_desc_at_index(i) );
 
 			*buffer_desc = _dev.interface(0).current().endpoint(i);
 		}
@@ -443,13 +440,14 @@ int Usb::Lx_wrapper::usb_submit_urb(unsigned int pipe, void * buffer,
 	}
 
 	Endpoint & ep = iface.current().endpoint(ep_search);
-
+	lx_usb_setup_urb(urb, endpoint_desc_at_index(ep_search));
+	
 	Packet_descriptor p = iface.alloc(buf_size);
 	bool incoming = ep.address & 0x80;
 	if ( !(incoming) ) { /* outgoing */
 		Genode::memcpy(iface.content(p), (char *)buffer, buf_size);
 	}
-	lx_usb_setup_urb(urb, &ep);
+	
 
 	add_packet_with_urb(p, urb, ep_search, incoming);
 
