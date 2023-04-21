@@ -14,7 +14,6 @@
 /* Genode includes */
 #include <base/allocator.h>
 #include <base/log.h>
-#include <format/snprintf.h>
 #include <log_session/log_session.h>
 #include <util/string.h>
 
