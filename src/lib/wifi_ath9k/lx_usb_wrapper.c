@@ -165,7 +165,11 @@ void lx_usb_do_urb_callback(void * in_urb, int succeeded, int inbound, void * bu
 	if (succeeded) {
 		urb->status = 0;
 		if (inbound) {
-			memcpy(urb->transfer_buffer, buffer, buf_size);
+			int buf_copy_amt = buf_size;
+
+			if (urb->transfer_buffer_length < buf_size )
+				buf_copy_amt = urb->transfer_buffer_length;
+			memcpy(urb->transfer_buffer, buffer, buf_copy_amt);
 		}
 	}
 	else urb->status = -1;
@@ -200,12 +204,19 @@ int lx_usb_handle_connect(
 	static int interface_registered = 0;
 	int err;
 	int i;
+	struct usb_host_endpoint * ep0;
 
 	cxx_context_ptr = context_ptr;
 
 	/* Preparation of the usb_host_interface */
 	memcpy(&lx_usb_host_if.desc, if_desc, sizeof(struct usb_host_interface));
-	lx_usb_host_if.endpoint = ep_array;
+	ep0 = (struct usb_host_endpoint *)ep_array;
+	lx_usb_host_if.endpoint = &ep0[1];
+
+
+	ep0->desc.bLength = USB_DT_ENDPOINT_SIZE;
+	ep0->desc.bDescriptorType = USB_DT_ENDPOINT;
+
 
 	/* Prepartion of the usb_device */
 	if ( !device_registered ) {
@@ -554,4 +565,29 @@ void usb_kill_anchored_urbs(struct usb_anchor *anchor)
 		spin_lock_irq(&anchor->lock);
 	}
 	spin_unlock_irq(&anchor->lock);
+}
+
+u8 lx_usb_get_request(void * in_urb) {
+	struct usb_ctrlrequest * ctrl_req;
+	struct urb * urb = (struct urb *)in_urb;
+	ctrl_req = (struct usb_ctrlrequest *)(urb->setup_packet);
+	return ctrl_req->bRequest;
+}
+u8 lx_usb_get_request_type(void * in_urb) {
+	struct usb_ctrlrequest * ctrl_req;
+	struct urb * urb = (struct urb *)in_urb;
+	ctrl_req = (struct usb_ctrlrequest *)(urb->setup_packet);
+	return ctrl_req->bRequestType;
+}
+u16 lx_usb_get_value(void * in_urb) {
+	struct usb_ctrlrequest * ctrl_req;
+	struct urb * urb = (struct urb *)in_urb;
+	ctrl_req = (struct usb_ctrlrequest *)(urb->setup_packet);
+	return le16_to_cpu(ctrl_req->wValue);
+}
+u16 lx_usb_get_index(void * in_urb) {
+	struct usb_ctrlrequest * ctrl_req;
+	struct urb * urb = (struct urb *)in_urb;
+	ctrl_req = (struct usb_ctrlrequest *)(urb->setup_packet);
+	return le16_to_cpu(ctrl_req->wIndex);
 }

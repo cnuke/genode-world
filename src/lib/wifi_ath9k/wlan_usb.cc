@@ -55,6 +55,10 @@ extern "C" int    lx_usb_handle_connect(Genode::uint16_t vend_id,
 extern "C" void   lx_usb_handle_disconnect();										
 extern "C" void * lx_usb_host_to_epdesc(void * in_host);
 extern "C" void   lx_usb_setup_urb(void * urb, void * ep);
+extern "C" Genode::uint8_t lx_usb_get_request(void * urb);
+extern "C" Genode::uint8_t lx_usb_get_request_type(void * urb);
+extern "C" Genode::uint16_t lx_usb_get_value(void * urb);
+extern "C" Genode::uint16_t lx_usb_get_index(void * urb);
 
 void Genode::Wlan_usb::handle_state_change()
 {
@@ -87,13 +91,13 @@ void Genode::Wlan_usb::handle_state_change()
 		}
 
 		num_ep = iface.current().num_endpoints;
-		if ( lx_ep_buffer_size != num_ep*lx_usb_wrap.endpoint_desc_size()) {
+		if ( lx_ep_buffer_size != (num_ep+1)*lx_usb_wrap.endpoint_desc_size()) {
 			if ( lx_ep_buffer_size > 0) {
-				warning("Number of endpoints changed between connection!");
+				warning("Number of endpoints changed between connections!");
 				heap.free(lx_ep_buffer, lx_ep_buffer_size);
 			}
 			
-			lx_ep_buffer_size = num_ep*lx_usb_wrap.endpoint_desc_size();
+			lx_ep_buffer_size = (num_ep+1)*lx_usb_wrap.endpoint_desc_size();
 
 			try { lx_ep_buffer = heap.alloc(lx_ep_buffer_size); }
 			catch (Genode::Out_of_caps) {
@@ -111,6 +115,7 @@ void Genode::Wlan_usb::handle_state_change()
 				      " (denied).");
 				return;
 			}
+			Genode::memset(lx_ep_buffer, 0, lx_ep_buffer_size);
 		}
 	}
 	lx_usb_wrap.handle_connect(lx_ep_buffer, num_ep, usb.plugged());
@@ -165,7 +170,10 @@ bool Usb::Lx_wrapper::mark_packet_complete(Packet_descriptor & p)
 			packet_map[search].complete = Packet_urb_map::COMPLETE;
 			packet_map[search].p        = p;
 			Genode::uint8_t ep_index = packet_map[search].ep_index;
-			if (p.read_transfer()) {
+			bool incoming = false;
+			if (ep_index == MAX_ENDPOINTS - 1) incoming = true;
+			else if (ep_index < MAX_ENDPOINTS - 2) incoming = p.read_transfer();
+			if (incoming) {
 				int places_available = max_incoming - pending_packets[ep_index]--;
 				/* increment available work if there were more queued packets than 
 				* available space */
@@ -205,8 +213,17 @@ void Usb::Lx_wrapper::send_and_receive()
 		if ( packet_map[search].complete == Packet_urb_map::QUEUED) {
 			if (iface) {
 				int ep_index = packet_map[search].ep_index;
-				Endpoint & ep = iface->current().endpoint(ep_index);
-				bool incoming = ep.address & 0x80;
+				bool incoming = false;
+
+				if (ep_index < MAX_ENDPOINTS - 2) {
+					Endpoint & ep = iface->current().endpoint(ep_index);
+					incoming = ep.address & 0x80;
+				}
+				else if (ep_index == MAX_ENDPOINTS - 1) {
+					incoming = false;
+				}
+				else incoming = true;
+
 				if (!incoming || pending_packets[ep_index] < max_incoming) {
 					packet_map[search].complete = Packet_urb_map::PENDING;
 					pending_packets[ep_index]++;
@@ -216,6 +233,10 @@ void Usb::Lx_wrapper::send_and_receive()
 						Genode::log("Submitting queued packet in position ", search, " at ", Lx_kit::env().timer.curr_time().trunc_to_plain_us(),
 							" ep_index ", ep_index, " queued_packets ", queued_packets[ep_index], " pending packets ", pending_packets[ep_index], " incoming ", incoming);
 					#endif
+					Endpoint *ep = nullptr;
+					if (ep_index < MAX_ENDPOINTS - 2) {
+						ep = &iface->current().endpoint(ep_index);
+					}
 					usb_submit_queued_urb(packet_map[search].p, ep);
 				}
 			}
@@ -269,6 +290,16 @@ void Usb::Lx_wrapper::send_completions()
 	for (i = 0; i < PACKET_URB_MAP_SIZE; ++i) {
 		int search = (i + next_packet + 1) % PACKET_URB_MAP_SIZE;
 		if ( packet_map[search].complete == Packet_urb_map::COMPLETE) {
+			bool incoming = false;
+			int actual_size;
+			if (packet_map[search].ep_index >= MAX_ENDPOINTS - 2) {
+				incoming = packet_map[search].ep_index == MAX_ENDPOINTS - 1;
+				actual_size = packet_map[search].p.control.actual_size;
+			}
+			else if (packet_map[search].ep_index < MAX_ENDPOINTS - 2) {
+				incoming = packet_map[search].p.read_transfer();
+				actual_size = packet_map[search].p.control.actual_size;
+			}
 			if (iface) {
 				void * packet = iface->content(packet_map[search].p);
 				#ifdef WLAN_USB_VERBOSE
@@ -276,15 +307,13 @@ void Usb::Lx_wrapper::send_completions()
 				#endif
 				lx_usb_do_urb_callback(packet_map[search].urb,
 									packet_map[search].p.succeded,
-									packet_map[search].p.read_transfer(),
-									packet,
-									packet_map[search].p.transfer.actual_size);
+									incoming, packet, actual_size);
 				iface->release(packet_map[search].p);
 			}
 			else { /* iface is invalid, send completion with error */
 				lx_usb_do_urb_callback(packet_map[search].urb,
 				                       false,
-				                       packet_map[search].p.read_transfer(),
+				                       incoming,
 				                       nullptr, 0);
 			}
 			packet_map[search].complete = Packet_urb_map::AVAILABLE;
@@ -425,29 +454,54 @@ int Usb::Lx_wrapper::usb_submit_urb(unsigned int pipe, void * buffer,
 	if ( !_dev.config ) return -1;
 	Usb::Interface &iface = _dev.interface(0);
 	int num_ep = iface.current().num_endpoints;
-	int ep_search;
+	int ep_search = 0;
 	int i;
+	bool incoming;
+	Packet_descriptor p;
 
 	for (i = 0; i < num_ep; ++i) {
 		ep_search = (i + (pipe & 0xF) - 1) % num_ep;
 		if (iface.current().endpoint(ep_search).address == pipe) break;
 	}
 	if (i >= num_ep) {
-		Genode::error("Attempt to send on a pipe ( ", Genode::Hex(pipe),
-		              " ) I couldn't find.");
-		lx_emul_trace_and_stop("USB failure");
-		return -1;
-	}
+		if (pipe & 0xF) {
+			Genode::error("Attempt to send on a pipe ( ", Genode::Hex(pipe),
+			              " ) I couldn't find.");
+			return -1;
+		}
+		/* Here we have endpoint 0 control transactions */
+		lx_usb_setup_urb(urb, endpoint_0_desc());
+		p = iface.alloc(buf_size);
+		/* setup p */
+		p.type                 = Usb::Packet_descriptor::CTRL;
+		p.succeded             = false;
+		p.control.request      = lx_usb_get_request(urb);
+		p.control.request_type = lx_usb_get_request_type(urb);
+		p.control.value        = lx_usb_get_value(urb);
+		p.control.index        = lx_usb_get_index(urb);
+		p.control.timeout      = 0;
+		p.completion           = this;
 
-	Endpoint & ep = iface.current().endpoint(ep_search);
-	lx_usb_setup_urb(urb, endpoint_desc_at_index(ep_search));
-	
-	Packet_descriptor p = iface.alloc(buf_size);
-	bool incoming = ep.address & 0x80;
-	if ( !(incoming) ) { /* outgoing */
-		Genode::memcpy(iface.content(p), (char *)buffer, buf_size);
+		incoming = pipe & 0x80;
+
+		if (incoming) {
+			ep_search = MAX_ENDPOINTS - 1; /* value indicating incoming ep0 */
+		}
+		else {
+			Genode::memcpy(iface.content(p), (char *)buffer, buf_size);
+			ep_search = MAX_ENDPOINTS - 2; /* value indicating outgoing ep0 */
+		}
 	}
-	
+	else {
+		Endpoint & ep = iface.current().endpoint(ep_search);
+		lx_usb_setup_urb(urb, endpoint_desc_at_index(ep_search));
+		
+		p = iface.alloc(buf_size);
+		incoming = ep.address & 0x80;
+		if ( !(incoming) ) { /* outgoing */
+			Genode::memcpy(iface.content(p), (char *)buffer, buf_size);
+		}
+	}
 
 	add_packet_with_urb(p, urb, ep_search, incoming);
 
@@ -465,17 +519,19 @@ int Usb::Lx_wrapper::usb_submit_urb(unsigned int pipe, void * buffer,
 	return -1;*/
 }
 
-void Usb::Lx_wrapper::usb_submit_queued_urb(Packet_descriptor &p, Endpoint &ep)
+void Usb::Lx_wrapper::usb_submit_queued_urb(Packet_descriptor &p, Endpoint *ep)
 {
 	Usb::Interface &iface = _dev.interface(0);
-
-	if (ep.interrupt()) {
+	if (ep == nullptr) { /* control transfer */
+		iface.submit(p);
+	}
+	else if (ep->interrupt()) {
 		iface.interrupt_transfer(
-			p, ep, Usb::Packet_descriptor::DEFAULT_POLLING_INTERVAL, false,
+			p, *ep, Usb::Packet_descriptor::DEFAULT_POLLING_INTERVAL, false,
 			this );
 	}
-	else if (ep.bulk()) {
-		iface.bulk_transfer( p, ep, false, this );
+	else if (ep->bulk()) {
+		iface.bulk_transfer( p, *ep, false, this );
 	}
 	/* do not support isoch endpoints... */
 }

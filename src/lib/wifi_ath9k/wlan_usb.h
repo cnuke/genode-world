@@ -149,7 +149,7 @@ class Usb::Lx_wrapper : Usb::Completion
 	                    Genode::uint16_t size, int timeout);
 
 	int usb_submit_urb(unsigned int pipe, void * buffer, Genode::uint32_t buf_size, void * urb);
-	void usb_submit_queued_urb(Packet_descriptor &p, Endpoint &ep);
+	void usb_submit_queued_urb(Packet_descriptor &p, Endpoint *ep);
 
 	inline Genode::size_t endpoint_desc_size()
 	{
@@ -161,8 +161,13 @@ class Usb::Lx_wrapper : Usb::Completion
 		if (!_endpoint_buffer) return nullptr;
 
 		char * buffer_base = (char *)_endpoint_buffer;
-		buffer_base += index*endpoint_desc_size();
+		buffer_base += (index+1)*endpoint_desc_size();
 		return (void *)buffer_base;
+	}
+
+	inline void * endpoint_0_desc()
+	{
+		return _endpoint_buffer;
 	}
 };
 
