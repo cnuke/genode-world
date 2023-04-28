@@ -298,7 +298,7 @@ void Usb::Lx_wrapper::send_completions()
 			}
 			else if (packet_map[search].ep_index < MAX_ENDPOINTS - 2) {
 				incoming = packet_map[search].p.read_transfer();
-				actual_size = packet_map[search].p.control.actual_size;
+				actual_size = packet_map[search].p.transfer.actual_size;
 			}
 			if (iface) {
 				void * packet = iface->content(packet_map[search].p);
