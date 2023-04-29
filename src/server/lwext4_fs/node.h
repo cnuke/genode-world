@@ -90,7 +90,7 @@ class Lwext4_fs::Node : public Node_base
 			status.modification_time = { mtime };
 
 			unsigned int const mode = ext4_inode_get_mode(sb, &_inode);
-		 	unsigned int const type = mode & 0xf000;
+			unsigned int const type = mode & 0xf000;
 			switch (type) {
 			case EXT4_INODE_MODE_DIRECTORY: status.type = Node_type::DIRECTORY; break;
 			case EXT4_INODE_MODE_SOFTLINK:  status.type = Node_type::SYMLINK;   break;
@@ -98,13 +98,15 @@ class Lwext4_fs::Node : public Node_base
 			default:                        status.type = Node_type::CONTINUOUS_FILE; break;
 			}
 
-			status.rwx = { .readable   = mode & 0x100,
-			               .writeable  = mode & 0x080,
-			               .executable = mode & 0x040,
+			status.rwx = { .readable   = (mode & 0x100) != 0,
+			               .writeable  = (mode & 0x080) != 0,
+			               .executable = (mode & 0x040) != 0,
 			};
 
 			return status;
 		}
+
+		virtual unsigned num_entries() { return 0; }
 
 		char const *name() { return _name.base(); }
 

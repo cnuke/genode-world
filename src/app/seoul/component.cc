@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2011-2019 Genode Labs GmbH
+ * Copyright (C) 2011-2022 Genode Labs GmbH
  * Copyright (C) 2012 Intel Corporation
  *
  * This file is distributed under the terms of the GNU General Public License
@@ -60,11 +60,13 @@
 #include "guest_memory.h"
 #include "timeout_late.h"
 #include "gui.h"
+#include "audio.h"
 
 
 enum { verbose_debug = false };
 enum { verbose_npt   = false };
 enum { verbose_io    = false };
+enum { verbose_audio = false };
 
 enum {
 	PAGE_SIZE_LOG2 = 12UL,
@@ -379,7 +381,7 @@ class Vcpu : public StaticReceiver<Vcpu>
 		{
 			/* advance EIP */
 			assert(msg.mtr_in & MTD_RIP_LEN);
-			msg.cpu->eip += msg.cpu->inst_len;
+			msg.cpu->ripx += msg.cpu->inst_len;
 			msg.mtr_out |= MTD_RIP_LEN;
 
 			/* cancel sti and mov-ss blocking as we emulated an instruction */
@@ -440,12 +442,18 @@ class Vcpu : public StaticReceiver<Vcpu>
 
 		bool _handle_map_memory(bool need_unmap)
 		{
-			Genode::addr_t const vm_fault_addr = _state.qual_secondary.value();
+			auto const vm_fault_addr = _state.qual_secondary.value();
 
 			if (verbose_npt)
-				Logging::printf("--> request mapping at 0x%lx\n", vm_fault_addr);
+				Genode::log("--> request mapping at", Genode::Hex(vm_fault_addr));
 
-			MessageMemRegion mem_region(vm_fault_addr >> PAGE_SIZE_LOG2);
+			if (need_unmap)
+				Genode::error("_handle_map_memory: need_unmap not handled, yet");
+
+			if (sizeof(uintptr_t) == 4 && vm_fault_addr >= (1ull << (32 + 12)))
+				Logging::panic("unsupported guest fault on 32bit");
+
+			MessageMemRegion mem_region(uintptr_t(vm_fault_addr >> PAGE_SIZE_LOG2));
 
 			if (!_motherboard()->bus_memregion.send(mem_region, false) ||
 			    !mem_region.ptr)
@@ -459,24 +467,6 @@ class Vcpu : public StaticReceiver<Vcpu>
 				                (Genode::addr_t)mem_region.ptr >> PAGE_SIZE_LOG2,
 				                ((Genode::addr_t)mem_region.ptr >> PAGE_SIZE_LOG2)
 				                + mem_region.count);
-
-			Genode::addr_t vmm_memory_base =
-			        reinterpret_cast<Genode::addr_t>(mem_region.ptr);
-			Genode::addr_t vmm_memory_fault = vmm_memory_base +
-			        (vm_fault_addr - (mem_region.start_page << PAGE_SIZE_LOG2));
-
-			/* XXX: Not yet supported by Seoul/Vancouver.
-
-			bool read=true, write=true, execute=true;
-			if (mem_region.attr == (DESC_TYPE_MEM | DESC_RIGHT_R)) {
-				if (verbose_npt)
-					Logging::printf("Mapping readonly to %p (err:%x, attr:%x)\n",
-						vm_fault_addr, utcb->qual[0], mem_region.attr);
-				write = execute = false;
-			}*/
-
-			if (need_unmap)
-				Logging::panic("_handle_map_memory: need_unmap not handled, yet\n");
 
 			assert(_state.inj_info.charged());
 
@@ -573,15 +563,15 @@ class Vcpu : public StaticReceiver<Vcpu>
 				_state.discharge(); /* reset */
 				_state.ctrl_secondary.charge(0);
 			} else {
-				unsigned order = ((_state.qual_primary.value() >> 4) & 7) - 1;
+				unsigned order = unsigned(((_state.qual_primary.value() >> 4) & 7) - 1);
 
 				if (order > 2)
 					order = 2;
 
-				_state.ip_len.charge(_state.qual_secondary.value() - _state.ip.value());
+				_state.ip_len.charge(Genode::addr_t(_state.qual_secondary.value() - _state.ip.value()));
 
 				_handle_io(_state.qual_primary.value() & 1, order,
-				           _state.qual_primary.value() >> 16);
+				           unsigned(_state.qual_primary.value() >> 16));
 			}
 		}
 
@@ -683,7 +673,7 @@ class Vcpu : public StaticReceiver<Vcpu>
 				if (order > 2) order = 2;
 
 				_handle_io(_state.qual_primary.value() & 8, order,
-				           _state.qual_primary.value() >> 16);
+				           unsigned(_state.qual_primary.value() >> 16));
 			}
 		}
 
@@ -758,6 +748,7 @@ class Machine : public StaticReceiver<Machine>
 		bool                   _same_cpu     { false   };
 		Seoul::Network        *_nic          { nullptr };
 		Rtc::Session          *_rtc          { nullptr };
+		Seoul::Audio          *_audio        { nullptr };
 
 		enum { MAX_CPUS = 8 };
 		Vcpu *                 _vcpus[MAX_CPUS] { nullptr };
@@ -780,6 +771,7 @@ class Machine : public StaticReceiver<Machine>
 			switch (msg.type) {
 
 			case MessageHostOp::OP_ALLOC_IOMEM:
+			case MessageHostOp::OP_ALLOC_IOMEM_SMALL:
 			{
 				if (msg.len & 0xfff)
 					return false;
@@ -788,7 +780,9 @@ class Machine : public StaticReceiver<Machine>
 				try {
 					Genode::Dataspace_capability ds = _env.ram().alloc(msg.len);
 					Genode::addr_t local_addr = _env.rm().attach(ds);
-					_guest_memory.add_region(_heap, guest_addr, local_addr, ds, msg.len);
+					_guest_memory.add_region(_heap, guest_addr, local_addr, ds,
+					                         msg.type == MessageHostOp::OP_ALLOC_IOMEM_SMALL ?
+					                         msg.len_short : msg.len);
 					msg.ptr = reinterpret_cast<char *>(local_addr);
 					return true;
 				} catch (...) {
@@ -884,7 +878,7 @@ class Machine : public StaticReceiver<Machine>
 				if (verbose_debug)
 					Genode::log("- OP_VCPU_RELEASE ", Genode::Thread::myself()->name());
 
-				unsigned vcpu_id = msg.value;
+				auto const vcpu_id = msg.value;
 				if ((_vcpus_up >= sizeof(_vcpus)/sizeof(_vcpus[0])))
 					return false;
 
@@ -904,7 +898,7 @@ class Machine : public StaticReceiver<Machine>
 					if (verbose_debug)
 						Genode::log("- OP_VCPU_BLOCK ", Genode::Thread::myself()->name());
 
-					unsigned vcpu_id = msg.value;
+					auto const vcpu_id = msg.value;
 					if ((_vcpus_up >= sizeof(_vcpus)/sizeof(_vcpus[0])))
 						return false;
 
@@ -1041,6 +1035,22 @@ class Machine : public StaticReceiver<Machine>
 			}
 		}
 
+		bool receive(MessageAudio &msg)
+		{
+			if (!_audio) {
+				try {
+					_audio = new (_heap) Seoul::Audio(_env, _motherboard,
+					                                  _unsynchronized_motherboard);
+					_audio->verbose(verbose_audio);
+				} catch (...) {
+					Genode::error("Creating audio backend failed");
+					return false;
+				}
+			}
+
+			return _audio->receive(msg);
+		}
+
 		bool receive(MessageTimer &msg)
 		{
 			switch (msg.type) {
@@ -1159,6 +1169,7 @@ class Machine : public StaticReceiver<Machine>
 			_unsynchronized_motherboard.bus_hwpcicfg.add(this, receive_static<MessageHwPciConfig>);
 			_unsynchronized_motherboard.bus_acpi.add    (this, receive_static<MessageAcpi>);
 			_unsynchronized_motherboard.bus_legacy.add  (this, receive_static<MessageLegacy>);
+			_unsynchronized_motherboard.bus_audio.add   (this, receive_static<MessageAudio>);
 		}
 
 
@@ -1303,7 +1314,7 @@ void Component::construct(Genode::Env &env)
 	Genode::log("--- Seoul VMM starting ---");
 
 	Genode::Xml_node const node     = config.xml();
-	Genode::uint64_t const vmm_size = node.attribute_value("vmm_memory",
+	auto             const vmm_size = node.attribute_value("vmm_memory",
 	                                                       Genode::Number_of_bytes(12 * 1024 * 1024));
 
 	bool const map_small         = node.attribute_value("map_small", false);
@@ -1312,11 +1323,11 @@ void Component::construct(Genode::Env &env)
 	                                                    false);
 
 	/* request max available memory */
-	Genode::uint64_t vm_size = env.pd().avail_ram().value;
+	auto vm_size = env.pd().avail_ram().value;
 	/* reserve some memory for the VMM */
 	vm_size -= vmm_size;
 	/* calculate max memory for the VM */
-	vm_size = vm_size & ~((1ULL << PAGE_SIZE_LOG2) - 1);
+	vm_size = vm_size & ~((1UL << PAGE_SIZE_LOG2) - 1);
 
 	Genode::log(" VMM memory ", Genode::Number_of_bytes(vmm_size));
 	Genode::log(" using ", map_small ? "small": "large",

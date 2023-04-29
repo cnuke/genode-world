@@ -40,6 +40,12 @@ class Mbim
 
 	enum State { NONE, UNLOCK, PIN, QUERY, ATTACH, CONNECT, READY };
 
+	enum Backoff {
+		BACKOFF_START = 1000,    /* first retry after one second */
+		BACKOFF_LIMIT = 64000,   /* increase retry timeout up to 64 seconds */
+		RSSI_DISCONNECT = 31,
+	};
+
 	using String  = Genode::String<32>;
 	using Cstring = Genode::Cstring;
 
@@ -49,6 +55,7 @@ class Mbim
 		Genode::uint32_t  mask;
 		Net::Ipv4_address gateway;
 		Net::Ipv4_address dns[2];
+		bool              connected;
 	};
 
 	struct Network
@@ -81,6 +88,7 @@ class Mbim
 		GMainLoop  *_loop       { nullptr };
 		MbimDevice *_device     { nullptr };
 		unsigned    _retry      { 0 };
+		unsigned    _backoff    { Mbim::BACKOFF_START };
 		guint32     _session_id { 0 };
 		Connection  _connection { };
 
@@ -440,14 +448,18 @@ class Mbim
 				mbim->_state = Mbim::PIN;
 			}
 
-			if (mbim->_retry++ >= 100) {
-				Genode::error("Device not registered after ", mbim->_retry, " tries");
-				mbim->_shutdown(FALSE);
-				return;
-			}
+			if ((++mbim->_retry) % 10 == 0)
+				Genode::warning("Device not registered after ", mbim->_retry, " tries");
 
-			/* delay re-request to leave device time for network registration */
-			g_timeout_add(500, _handle_timeout, mbim); /* 500ms */
+			/*
+			 * We delay request retries to leave device time for network
+			 * registration. The delay is based on exponential backoff with
+			 * upper bound.
+			 */
+			guint const delay = mbim->_backoff < Mbim::BACKOFF_LIMIT
+			                  ? mbim->_backoff *= 2
+			                  : Mbim::BACKOFF_LIMIT;
+			g_timeout_add(delay, _handle_timeout, mbim);
 		}
 
 		static gboolean _handle_timeout(gpointer user_data)
@@ -465,6 +477,9 @@ class Mbim
 			Mbim *mbim = _mbim(user_data);
 			GError *error                   = nullptr;
 			g_autoptr(MbimMessage) response = mbim->_command_response(res);
+
+			/* clear backoff upon successful connection */
+			mbim->_backoff = Mbim::BACKOFF_START;
 
 			if (!response) return;
 
@@ -606,11 +621,12 @@ class Mbim
 				Genode::log("dns", i, "   : ", dns[i]);
 			}
 
-			mbim->_connection.ip      = address;
-			mbim->_connection.mask    = ipv4address[0]->on_link_prefix_length;
-			mbim->_connection.gateway = gateway;
-			mbim->_connection.dns[0]  = dns[0];
-			mbim->_connection.dns[1]  = dns[1];
+			mbim->_connection.ip        = address;
+			mbim->_connection.mask      = ipv4address[0]->on_link_prefix_length;
+			mbim->_connection.gateway   = gateway;
+			mbim->_connection.dns[0]    = dns[0];
+			mbim->_connection.dns[1]    = dns[1];
+			mbim->_connection.connected = true;
 			mbim->_state = Mbim::READY;
 			mbim->_report_config();
 		}
@@ -742,6 +758,22 @@ class Mbim
 							              (char const *)error->message);
 							return;
 						}
+
+						/* handle RSSI connection-state change */
+						if (mbim->_state_report.rssi > RSSI_DISCONNECT) {
+							if (mbim->_connection.connected) {
+								mbim->_connection.connected = false;
+								mbim->_report_config();
+								mbim->_state = NONE;
+							}
+						} else {
+							if (!mbim->_connection.connected) {
+								mbim->_connection.connected = true;
+								mbim->_report_config();
+								mbim->_send_request();
+							}
+						}
+
 						mbim->_report_state();
 						break;
 
@@ -872,7 +904,7 @@ class Mbim
 					});
 
 					xml.node("signal", [&] () {
-						if (_state_report.rssi > 31)
+						if (_state_report.rssi > RSSI_DISCONNECT)
 							xml.attribute("rssi_dbm", "unknown");
 						else
 							xml.attribute("rssi_dbm", String("-", 113-2*_state_report.rssi));
@@ -889,6 +921,17 @@ class Mbim
 		{
 			if (_state != Mbim::READY)
 				return;
+
+			/* handle intermediate disconnect */
+			if (!_connection.connected) {
+				_config_reporter.enabled(true);
+				Genode::Reporter::Xml_generator xml(_config_reporter, [&]() {
+					xml.attribute("verbose", "no");
+					xml.attribute("verbose_packets", "no");
+					xml.attribute("verbose_domain_state", "yes");
+				});
+				return;
+			}
 
 			String interface = "10.0.1.1/24";
 			String ip_first  = "10.0.1.2";

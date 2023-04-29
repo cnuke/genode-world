@@ -1,6 +1,10 @@
 SRC_GO_PKG := im.go
+# github.com/woojiahao/tower-of-hanoi-solver/cmd
+# github.com/tatsushid/go-fastping/cmd/ping
+# im.go
 # greet.go srv.go
 #
+# should prepare goroot port before!
 
 GOBUILD_VERBOSE := -x
 
