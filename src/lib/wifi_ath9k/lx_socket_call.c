@@ -217,7 +217,7 @@ unsigned int lx_get_wifi_ifindex(const char *ifname)
 int lx_ioctl(unsigned long request, void * ifr)
 {
 	return dev_ioctl(&init_net, (unsigned int)request, (struct ifreq *)ifr,
-	                 NULL);
+	                 NULL, NULL);
 }
 
 

@@ -2,7 +2,7 @@
 # Driver portions
 #
 
-PC_LIB_MK := $(addprefix lib/mk/,wifi_firmware.mk)
+# PC_LIB_MK := $(addprefix lib/mk/,wifi_firmware.mk)
 
 LIB_MK := $(addprefix lib/mk/,wifi_ath9k.inc vfs_wifi_ath9k.mk) \
           $(foreach SPEC,x86_32 x86_64,lib/mk/spec/$(SPEC)/wifi_ath9k.mk)

@@ -405,3 +405,39 @@ int ___ratelimit(struct ratelimit_state * rs,const char * func)
 	lx_emul_trace(__func__);
 	return 1;
 }
+
+#include <linux/pgtable.h>
+
+pteval_t __default_kernel_pte_mask __read_mostly = ~0;
+
+
+#include <linux/random.h>
+
+u32 __get_random_u32_below(u32 ceil)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+u16 get_random_u16(void)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+u8 get_random_u8(void)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_sibling_map);
+EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
+
+#include <linux/filter.h>
+
+DEFINE_STATIC_KEY_FALSE(bpf_master_redirect_enabled_key);
+EXPORT_SYMBOL_GPL(bpf_master_redirect_enabled_key);
+
+
+extern const struct attribute_group dev_attr_physical_location_group;
+const struct attribute_group dev_attr_physical_location_group = {};

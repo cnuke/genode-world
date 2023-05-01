@@ -610,12 +610,3 @@ int pci_read_config_word(const struct pci_dev * dev,int where,u16 * val)
 	};
 	lx_emul_trace_and_stop(__func__);
 }
-
-
-#include <linux/clk.h>
-
-unsigned long clk_get_rate(struct clk *clk)
-{
-	/* XXX try with 0 first - checked against 20000000 in rt2800lib.c */
-	return 0;
-}

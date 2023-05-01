@@ -14,15 +14,13 @@ SRC_CC  += misc.cc
 SRC_CC  += time.cc
 SRC_CC  += firmware.cc
 SRC_CC  += socket_call.cc
-SRC_CC  += random.cc
+SRC_CC  += lx_emul/random.cc
 
 SRC_C   += dummies.c
 SRC_C   += lx_emul.c
 SRC_C   += lx_user.c
 SRC_C   += uplink.c
 SRC_C   += lx_usb_wrapper.c
-
-CC_OPT_lx_emul/shadow/kernel/softirq += -DKBUILD_MODNAME='"shadow_softirq"'
 
 CC_OPT_lx_socket_call += -DKBUILD_MODNAME='"lx_socket_call"'
 SRC_C   += lx_socket_call.c
@@ -32,6 +30,10 @@ SRC_C   += $(notdir $(wildcard $(TARGET_LIB_DIR)/extra_dummies.c))
 SRC_C   += lx_emul/common_dummies.c
 
 CC_C_OPT += -I$(LX_SRC_DIR)/drivers/net/wireless/intel/iwlwifi
+CC_C_OPT += -I$(LX_SRC_DIR)/drivers/net/wireless/realtek/rtlwifi
+CC_C_OPT += -I$(LX_SRC_DIR)/drivers/net/wireless/realtek/rtlwifi/rtl8188ee
+CC_C_OPT += -I$(LX_SRC_DIR)/drivers/net/wireless/ath/
+CC_C_OPT += -I$(LX_SRC_DIR)/drivers/net/wireless/ath/ath9k
 CC_C_OPT += -I$(LX_SRC_DIR)/include/linux
 
 CC_C_OPT += -Wno-address-of-packed-member
@@ -51,7 +53,7 @@ vpath %.cc $(PC_REPO_DIR)
 vpath %.c $(TARGET_LIB_DIR)
 vpath %.cc $(TARGET_LIB_DIR)
 
-CUSTOM_TARGET_DEPS += $(TARGET_LIB_DIR)/symbol.map
+$(LIB).lib.so: $(TARGET_LIB_DIR)/symbol.map
 
 #
 # Genode C-API backends

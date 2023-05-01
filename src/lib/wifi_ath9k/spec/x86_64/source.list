@@ -104,7 +104,6 @@ crypto/gf128mul.c
 crypto/ghash-generic.c
 crypto/hash_info.c
 crypto/kpp.c
-crypto/memneq.c
 crypto/proc.c
 crypto/rng.c
 crypto/scatterwalk.c
@@ -117,6 +116,7 @@ crypto/testmgr.c
 lib/siphash.c
 lib/crc32.c
 lib/crypto/aes.c
+lib/crypto/memneq.c
 lib/nlattr.c
 lib/dynamic_queue_limits.c
 
@@ -195,11 +195,7 @@ kernel/irq/manage.c
 kernel/irq/resend.c
 kernel/locking/mutex.c
 kernel/locking/rwsem.c
-kernel/sched/clock.c
-kernel/sched/completion.c
-kernel/sched/swait.c
-kernel/sched/wait.c
-kernel/sched/wait_bit.c
+kernel/sched/build_utility.c
 kernel/smpboot.c
 kernel/softirq.c
 kernel/time/clockevents.c
