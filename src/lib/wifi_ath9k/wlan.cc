@@ -107,6 +107,7 @@ struct Wlan
 
 	Wlan(Env &env) : _env { env }
 	{
+		Genode::log("Starting ath9k driver!");
 		genode_uplink_init(genode_env_ptr(_env),
 		                   genode_allocator_ptr(Lx_kit::env().heap),
 		                   genode_signal_handler_ptr(_signal_handler));

@@ -41,6 +41,14 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
 	}
 }
 
+#include <linux/mm.h>
+#include <../mm/slab.h>
+
+void * kmem_cache_alloc_lru(struct kmem_cache * cachep,struct list_lru * lru,gfp_t flags)
+{
+	return kmalloc(cachep->size, flags);
+}
+
 
 #include <linux/fs.h>
 

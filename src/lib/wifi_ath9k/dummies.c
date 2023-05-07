@@ -433,6 +433,7 @@ u8 get_random_u8(void)
 DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_sibling_map);
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 
+
 #include <linux/filter.h>
 
 DEFINE_STATIC_KEY_FALSE(bpf_master_redirect_enabled_key);
@@ -441,3 +442,113 @@ EXPORT_SYMBOL_GPL(bpf_master_redirect_enabled_key);
 
 extern const struct attribute_group dev_attr_physical_location_group;
 const struct attribute_group dev_attr_physical_location_group = {};
+
+
+#include <linux/acpi.h>
+
+void acpi_device_notify(struct device * dev)
+{
+	lx_emul_trace(__func__);
+}
+
+extern bool dev_add_physical_location(struct device * dev);
+bool dev_add_physical_location(struct device * dev)
+{
+	lx_emul_trace(__func__);
+	return false;
+}
+
+
+#include <linux/sysctl.h>
+
+struct ctl_table_header * register_sysctl(const char * path,struct ctl_table * table)
+{
+	lx_emul_trace(__func__);
+	return NULL;
+}
+
+
+#include <net/gen_stats.h>
+
+void gnet_stats_basic_sync_init(struct gnet_stats_basic_sync * b)
+{
+	lx_emul_trace(__func__);
+}
+
+#include <linux/iommu.h>
+
+int iommu_device_use_default_domain(struct device * dev)
+{
+	lx_emul_trace(__func__);
+	return 0;
+}
+
+
+#include <linux/context_tracking_irq.h>
+
+noinstr void ct_irq_enter(void)
+{
+	lx_emul_trace(__func__);
+}
+
+
+#include <linux/context_tracking_irq.h>
+
+noinstr void ct_irq_exit(void)
+{
+	lx_emul_trace(__func__);
+}
+
+
+unsigned int pci_rescan_bus(struct pci_bus *bus)
+{
+	lx_emul_trace(__func__);
+	return 0;
+}
+
+
+void pcim_pin_device(struct pci_dev *pdev)
+{
+	lx_emul_trace(__func__);
+}
+
+
+void pcim_iounmap(struct pci_dev *pdev, void __iomem *addr)
+{
+	lx_emul_trace(__func__);
+}
+
+
+#include <linux/sysctl.h>
+
+void __init __register_sysctl_init(const char * path,struct ctl_table * table,const char * table_name)
+{
+	lx_emul_trace(__func__);
+}
+
+
+#include <linux/sysfs.h>
+
+int sysfs_add_file_to_group(struct kobject * kobj,const struct attribute * attr,const char * group)
+{
+	lx_emul_trace(__func__);
+	return 0;
+}
+
+
+void * high_memory;
+
+
+int pcim_iomap_regions(struct pci_dev *pdev, int mask, const char *name)
+{
+	lx_emul_trace(__func__);
+	return 0;
+}
+
+
+int pcie_capability_clear_and_set_word(struct pci_dev *dev, int pos,
+                                       u16 clear, u16 set)
+{
+	lx_emul_trace_and_stop(__func__);
+	return 0;
+}
