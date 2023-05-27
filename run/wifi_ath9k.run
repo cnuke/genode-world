@@ -72,7 +72,10 @@ import_from_depot [depot_user]/src/[base_src] \
 #
 
 set build_components {
+	app/usb_report_filter
 	drivers/wifi_ath9k_drv/pc
+	server/fs_rom
+	server/vfs
 	server/report_rom
 	server/dynamic_rom
 	server/nic_router
@@ -80,6 +83,7 @@ set build_components {
 	lib/vfs_wifi_ath9k
 	lib/vfs_jitterentropy
 	lib/vfs_lwip
+	lib/vfs_import
 }
 
 build $build_components
@@ -151,7 +155,7 @@ append config {
 				<inline description="connect">
 } [wifi_config 30 5 no [list "[wifi_ssid] WPA2 [wifi_psk] yes"]] {
 				</inline>
-				<sleep milliseconds="60000"/>
+				<sleep milliseconds="600000"/>
 				<inline description="rfkill block">
 } [wifi_config 30 5 yes [list "[wifi_ssid] WPA2 [wifi_psk] yes"]] {
 				</inline>
@@ -196,8 +200,70 @@ append config {
 		<resource name="RAM" quantum="1M"/>
 		<provides> <service name="Report"/> <service name="ROM"/> </provides>
 		<config verbose="yes">
-			<default-policy report="usb_drv -> usb_drv -> devices"/>
+			<policy label="usb_report_filter -> devices"        report="usb_host_drv -> usb_drv -> devices"/>
+			<policy label="usb_report_filter -> usb_drv_config" report="usb_host_drv -> usb_drv -> config"/>
+			<policy label="wifi_drv -> usb_devices"             report="usb_report_filter -> usb_devices"/>
 		</config>
+	</start>
+
+	<start name="usb_config_fs" priority="-1">
+		<binary name="vfs"/>
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="File_system"/></provides>
+		<config verbose="yes">
+			<vfs>
+				<ram/>
+				<import>
+					<inline name="usb_drv.config">
+<config>
+	<report devices="yes" config="yes"/>
+</config>
+					</inline>
+					<inline name="usb_report_filter.config">
+<config>
+	<vfs> <fs/> </vfs>
+
+	<!-- USB device whitelist -->
+	<client label="wifi_drv"/>
+	<device vendor_id="0x0cf3" product_id="0x9271"/>
+	<device vendor_id="0x050d" product_id="0x1103"/>
+</config>
+					</inline>
+				</import>
+			</vfs>
+			<policy label_prefix="usb_report_filter" root="/" writeable="yes" />
+			<policy label_prefix="usb_config_rom" root="/"/>
+		</config>
+	</start>
+
+	<start name="usb_config_rom" priority="-1">
+		<binary name="fs_rom"/>
+		<resource name="RAM" quantum="1200K"/>
+		<provides><service name="ROM"/></provides>
+		<route>
+			<service name="File_system"><child name="usb_config_fs"/></service>
+			<any-service><parent/><any-child/></any-service>
+		</route>
+	</start>
+
+	<start name="usb_report_filter" priority="-1">
+		<resource name="RAM" quantum="1200K"/>
+		<route>
+			<service name="Report"><child name="report_rom" /></service>
+			<service name="ROM" label="config">
+				<child name="usb_config_rom" label="usb_report_filter.config"/>
+			</service>
+			<service name="ROM" label="devices">
+				<child name="report_rom"/>
+			</service>
+			<service name="ROM" label="usb_drv_config">
+				<child name="report_rom"/>
+			</service>
+			<service name="File_system" label="usb_drv.config">
+				<child name="usb_config_fs"/>
+			</service>
+			<any-service><parent/><any-child /></any-service>
+		</route>
 	</start>
 
 	<start name="usb_host_drv" caps="1500" managing_system="yes">
@@ -212,6 +278,8 @@ append config {
 				<parent label="drivers.config"/> </service>
 			<service name="Report"> <child name="report_rom"/> </service>
 			<service name="Timer">  <child name="timer"/> </service>
+			<service name="ROM" label="usb_host_drv.config">
+				<child name="usb_config_rom" label="usb_drv.config"/> </service>
 			<any-service> <parent/> </any-service>
 		</route>
 	</start>
@@ -233,11 +301,12 @@ append config {
 		</config>
 		<route>
 			<service name="Uplink"> <child name="nic_router"/> </service>
-			<service name="Usb"> <child name="usb_host_drv" label="wifi_drv"/> </service>
+			<service name="Usb"> <child name="usb_host_drv"/> </service>
 			<service name="Platform"> <child name="usb_host_drv"/> </service>
 			<service name="Report" label="accesspoints"> <child name="accesspoints_report_rom"/> </service>
 			<service name="Report" label="state"> <child name="state_report_rom"/> </service>
 			<service name="ROM" label="wifi_config"> <child name="config_rom"/> </service>
+			<service name="ROM" label="usb_devices"> <child name="report_rom"/> </service>
 			<any-service> <parent/> <any-child/> </any-service>
 		</route>
 	</start>
@@ -249,16 +318,16 @@ install_config $config
 #
 # Define USB host controller config
 #
-set fd [open [run_dir]/genode/usb_host_drv.config w]
-puts $fd {
-	<config>
-		<report devices="yes"/>
-		<policy label="wifi_drv" vendor_id="0x0cf3" product_id="0x9271"/>
-		<!-- policy label="wifi_drv" vendor_id="0x07d1" product_id="0x3c16"/ -->
-		<!-- policy label="wifi_drv" vendor_id="0x050d" product_id="0x1103"/ -->
-	</config>
-}
-close $fd
+#set fd [open [run_dir]/genode/usb_host_drv.config w]
+#puts $fd {
+#	<config>
+#		<report devices="yes"/>
+#		<policy label="wifi_drv" vendor_id="0x0cf3" product_id="0x9271"/>
+#		<!-- policy label="wifi_drv" vendor_id="0x07d1" product_id="0x3c16"/ -->
+#		<!-- policy label="wifi_drv" vendor_id="0x050d" product_id="0x1103"/ -->
+#	</config>
+#}
+#close $fd
 
 set firmware_modules {
 	regulatory.db
@@ -275,10 +344,10 @@ set firmware_modules {
 set boot_modules {
 	core ld.lib.so init timer report_rom dynamic_rom
 	vfs_jitterentropy.lib.so
-	libc.lib.so vfs.lib.so libcrypto.lib.so libssl.lib.so
+	libc.lib.so vfs.lib.so vfs_import.lib.so libcrypto.lib.so libssl.lib.so
 	wpa_driver_nl80211.lib.so wpa_supplicant.lib.so
 	wifi_ath9k_drv wifi_ath9k.lib.so vfs_wifi_ath9k.lib.so
-	nic_router
+	nic_router usb_report_filter fs_rom vfs
 	platform_drv acpi_drv pci_decode
 	test-lwip_httpsrv
 	vfs_lwip.lib.so

@@ -11,17 +11,16 @@
 * version 2.
 */
 
+#include <base/attached_rom_dataspace.h>
 #include <usb/usb.h>
 #include <lx_kit/task.h>
 #include <lx_kit/env.h>
 
+#include "lx_user.h"
+
 using Genode::size_t;
 
-extern "C" void * lx_emul_usb_comp_struct;
-extern "C" void * lx_emul_usb_conn_struct;
 extern "C" size_t lx_usb_host_endpoint_size(void);
-extern "C" int    lx_usb_complete_task(void * in_wrap_struct);
-extern "C" int    lx_usb_connect_task(void * in_wrap_struct);
 
 namespace Genode {
 	class Wlan_usb;
@@ -36,8 +35,7 @@ class Usb::Lx_wrapper : Usb::Completion
   private:
 	Device & _dev;
 	Genode::Entrypoint & _ep;
-	Lx_kit::Task * _connect_task = nullptr;
-	Lx_kit::Task * _complete_task = nullptr;
+	Genode::Signal_transmitter _pstate_chg;
 	Lx_kit::Task * _ctrl_task = nullptr;
 
 	Lx_wrapper( Lx_wrapper & ) = delete;
@@ -86,7 +84,7 @@ class Usb::Lx_wrapper : Usb::Completion
 	int queued_packets[MAX_ENDPOINTS] = { };
 	int available_work = 0;
 	bool pending_connection = false;
-	bool pending_disconnection = false;
+	bool _pending_disconnection = false;
 
 	void add_packet_with_urb(Packet_descriptor & p, void * urb, int ep_index,
 	                         bool incoming);
@@ -114,16 +112,14 @@ class Usb::Lx_wrapper : Usb::Completion
 
   public:
 
-	Lx_wrapper(Device & dev, Genode::Entrypoint & ep) : _dev(dev), _ep(ep) { }
+	Lx_wrapper(Device & dev, Genode::Entrypoint & ep,
+	           Genode::Signal_transmitter parent_state_chg) :
+			   _dev(dev), _ep(ep), _pstate_chg(parent_state_chg) { }
 
-	~Lx_wrapper()
-	{
-		destroy(Lx_kit::env().heap, _complete_task);
-		destroy(Lx_kit::env().heap, _connect_task);
-	}
+	~Lx_wrapper() { }
 
 	/* FIXME: set up tasks with kernel_thread for auto-assigned PIDs */
-	static int constexpr default_pid = 1000;
+	/*static int constexpr default_pid = 1000;
 	void init()
 	{
 		_complete_task = new (Lx_kit::env().heap)
@@ -136,7 +132,7 @@ class Usb::Lx_wrapper : Usb::Completion
 			             lx_emul_usb_conn_struct, default_pid+1,
 			             "lxemul_usbconn", Lx_kit::env().scheduler,
 			             Lx_kit::Task::NORMAL);
-	}
+	}*/
 
 	void send_and_receive();
 	void send_completions();
@@ -150,6 +146,7 @@ class Usb::Lx_wrapper : Usb::Completion
 
 	int usb_submit_urb(unsigned int pipe, void * buffer, Genode::uint32_t buf_size, void * urb);
 	void usb_submit_queued_urb(Packet_descriptor &p, Endpoint *ep);
+	bool pending_disconnection() { return _pending_disconnection; }
 
 	inline Genode::size_t endpoint_desc_size()
 	{
@@ -178,23 +175,34 @@ struct Genode::Wlan_usb
 	Heap               heap { env.ram(), env.rm() };
 	Entrypoint       & ep { env.ep() };
 
-	/* jitterentropy */
-	struct rand_data * rnd_src { nullptr };
-
 	/* USB */
 	Signal_handler<Wlan_usb> state_change_dispatcher = {
 		ep, *this, &Wlan_usb::handle_state_change };
 
 	Allocator_avl          alloc_for_connection { &heap };
-	Usb::Connection        usb { env, &alloc_for_connection, "wifi",
-	                             4 * (1<<20), state_change_dispatcher };
-	Usb::Device            device { &heap, usb, ep };
+	Genode::Constructible<Usb::Connection>        usb { };
+	/*env, &alloc_for_connection, "wifi", 4 * (1<<20), state_change_dispatcher*/
+	Genode::Constructible<Usb::Device>            device { };
+	/*{ &heap, usb, ep };*/
+	Genode::Constructible<Usb::Lx_wrapper>        lx_usb_wrap { };
+	/*{ device, ep };*/
 
-	Usb::Lx_wrapper        lx_usb_wrap { device, ep };
+	Genode::Attached_rom_dataspace usb_device_rom { env, "usb_devices" };
+	using target_name_str = Genode::String<64>;
+	target_name_str usb_target_name = { };
+	enum : Genode::uint8_t {
+		NOTARGET,
+		DISCONNECTED,
+		CONNECTED,
+		DISCONNECTING,
+	} status = NOTARGET;
+	void * lx_ep_buffer = nullptr;
+	size_t lx_ep_buffer_size = 0;
 
 	void handle_state_change();
 
 	Wlan_usb(Env &env) : env(env) {
+		usb_device_rom.sigh(state_change_dispatcher);
 		Genode::Signal_transmitter
 			transmit_to_state_change_handler(state_change_dispatcher);
 		transmit_to_state_change_handler.submit();

@@ -22,7 +22,16 @@
 
 static struct genode_uplink *dev_genode_uplink(struct net_device *dev)
 {
-	return (struct genode_uplink *)dev->ifalias;
+	struct genode_uplink * ret = NULL;
+	const struct dev_ifalias *alias;
+
+	rcu_read_lock();
+	alias = rcu_dereference(dev->ifalias);
+	if (alias)
+		ret = *((struct genode_uplink **)(&alias->ifalias));
+	rcu_read_unlock();
+
+	return ret;
 }
 
 
@@ -122,6 +131,8 @@ static rx_handler_result_t handle_rx(struct sk_buff **pskb)
 static void handle_create_uplink(struct net_device *dev)
 {
 	struct genode_uplink_args args;
+	struct dev_ifalias * new_alias;
+	void * genode_uplink_ptr;
 
 	if (dev_genode_uplink(dev))
 		return;
@@ -146,7 +157,18 @@ static void handle_create_uplink(struct net_device *dev)
 
 	args.label = &dev->name[0];
 
-	dev->ifalias = (struct dev_ifalias *)genode_uplink_create(&args);
+	genode_uplink_ptr = genode_uplink_create(&args);
+	new_alias = kmalloc(sizeof(*new_alias) + sizeof(void *), GFP_KERNEL);
+	if (!new_alias)
+		panic("No memory for uplink structure pointer!");
+
+	memcpy(new_alias->ifalias, (char *)(&genode_uplink_ptr),
+			sizeof(genode_uplink_ptr));
+
+	new_alias = rcu_replace_pointer(dev->ifalias, new_alias, true);
+
+	if (new_alias)
+		kfree_rcu(new_alias, rcuhead);
 }
 
 
@@ -162,7 +184,11 @@ static void handle_destroy_uplink(struct net_device *dev)
 
 	genode_uplink_destroy(uplink);
 
-	dev->ifalias = NULL;
+	{
+		struct dev_ifalias * old_alias = NULL;
+		old_alias = rcu_replace_pointer(dev->ifalias, old_alias, true);
+		kfree_rcu(old_alias, rcuhead);
+	}
 }
 
 

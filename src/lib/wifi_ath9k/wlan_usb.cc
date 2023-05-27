@@ -51,74 +51,125 @@ extern "C" void   lx_usb_do_urb_callback(void * urb, int suceeded, int inbound,
 extern "C" int    lx_usb_handle_connect(Genode::uint16_t vend_id,
                                         Genode::uint16_t prod_id,
                                         void * if_desc, void * cfg_desc,
-                                        void * ep_array, void * context_ptr);
+                                        void * ep_array);
 extern "C" void   lx_usb_handle_disconnect();										
 extern "C" void * lx_usb_host_to_epdesc(void * in_host);
 extern "C" void   lx_usb_setup_urb(void * urb, void * ep);
-extern "C" Genode::uint8_t lx_usb_get_request(void * urb);
-extern "C" Genode::uint8_t lx_usb_get_request_type(void * urb);
+extern "C" void   lx_usb_init(void);
+extern "C" void   lx_usb_init_ctx(void * ctx);
+extern "C" Genode::uint8_t  lx_usb_get_request(void * urb);
+extern "C" Genode::uint8_t  lx_usb_get_request_type(void * urb);
 extern "C" Genode::uint16_t lx_usb_get_value(void * urb);
 extern "C" Genode::uint16_t lx_usb_get_index(void * urb);
 
 void Genode::Wlan_usb::handle_state_change()
 {
-	static void * lx_ep_buffer = nullptr;
-	static size_t lx_ep_buffer_size = 0;
-	static bool inited = false;
-	int num_ep = 0;
-	
-	if (!inited) {
-		lx_usb_wrap.init();
-		inited = true;
-	}
+	switch (status) {
+	case NOTARGET:
+		usb_device_rom.update();
 
-	if (!usb.plugged()) {
-		log("Device unplugged");
-	}
-	else {
-		log("Device plugged");
-		device.update_config();
-
-		Usb::Interface &iface = device.interface(0);
-
-		try { iface.claim(); }
-		catch (Usb::Session::Interface_already_claimed) {
-			error("Device already claimed");
-			return;
-		} catch (Usb::Session::Interface_not_found) {
-			error("Interface not found");
-			return;
+		if (!usb_device_rom.valid()) { return; }
+		else {
+			Genode::Xml_node config = usb_device_rom.xml();
+			usb_target_name = { 0 };
+			config.with_optional_sub_node("device",
+										[&] (Genode::Xml_node const &node) {
+				usb_target_name =
+					node.attribute_value("label", target_name_str());
+			});
 		}
-
-		num_ep = iface.current().num_endpoints;
-		if ( lx_ep_buffer_size != (num_ep+1)*lx_usb_wrap.endpoint_desc_size()) {
-			if ( lx_ep_buffer_size > 0) {
-				warning("Number of endpoints changed between connections!");
-				heap.free(lx_ep_buffer, lx_ep_buffer_size);
+		if (usb_target_name.length()) {
+			Genode::log("Attempting to connect to device ", usb_target_name);
+			usb.construct(env,
+			              &alloc_for_connection,
+			              usb_target_name.string(),
+			              4 * (1<<20),
+			              state_change_dispatcher);
+			if (usb->plugged()) {
+				status = DISCONNECTED;
+				[[fallthrough]];
 			}
+			else {
+				Genode::log("Connected but device unplugged.");
+				break;
+			}
+		}
+		else break;
+	case DISCONNECTED:
+		if (usb->plugged()) {
+			Genode::log("Device plugged.");
+			device.construct(&heap, *usb, ep);
+			lx_usb_wrap.construct(*device, ep,
+				Genode::Signal_transmitter(state_change_dispatcher));
 			
-			lx_ep_buffer_size = (num_ep+1)*lx_usb_wrap.endpoint_desc_size();
+			device->update_config();
+			Usb::Interface &iface = device->interface(0);
 
-			try { lx_ep_buffer = heap.alloc(lx_ep_buffer_size); }
-			catch (Genode::Out_of_caps) {
-				error("Failed to allocate buffer for linux endpoint data"
-				" (out of caps).");
-				return;
+			try { iface.claim(); }
+			catch (Usb::Session::Interface_already_claimed) {
+				error("Device already claimed");
+				break;
+			} catch (Usb::Session::Interface_not_found) {
+				error("Interface not found");
+				break;
 			}
-			catch (Genode::Out_of_ram) {
-				error("Failed to allocate buffer for linux endpoint data"
-				      " (out of ram).");
-				return;
+
+			int num_ep = iface.current().num_endpoints;
+			if ( lx_ep_buffer_size != (num_ep+1)*lx_usb_wrap->endpoint_desc_size()) {
+				if ( lx_ep_buffer_size > 0) {
+					warning("Number of endpoints changed between connections!");
+					heap.free(lx_ep_buffer, lx_ep_buffer_size);
+				}
+				
+				lx_ep_buffer_size = (num_ep+1)*lx_usb_wrap->endpoint_desc_size();
+
+				try { lx_ep_buffer = heap.alloc(lx_ep_buffer_size); }
+				catch (Genode::Out_of_caps) {
+					error("Failed to allocate buffer for linux endpoint data"
+					" (out of caps).");
+					break;
+				}
+				catch (Genode::Out_of_ram) {
+					error("Failed to allocate buffer for linux endpoint data"
+						" (out of ram).");
+					break;
+				}
+				catch (Ram_allocator::Denied) {
+					error("Failed to allocate buffer for linux endpoint data"
+						" (denied).");
+					break;
+				}
+				Genode::memset(lx_ep_buffer, 0, lx_ep_buffer_size);
 			}
-			catch (Ram_allocator::Denied) {
-				error("Failed to allocate buffer for linux endpoint data"
-				      " (denied).");
-				return;
-			}
-			Genode::memset(lx_ep_buffer, 0, lx_ep_buffer_size);
+			Genode::log("Calling lx_usb_wrap->handle_connect(...)");
+			lx_usb_wrap->handle_connect(lx_ep_buffer, num_ep, true);
+			status = CONNECTED;
+			break;
+		}
+	case CONNECTED:
+		if (!usb->plugged()) {
+			Genode::log("Device unplugged.");
+		}
+		lx_usb_wrap->handle_connect(nullptr, 0, false);
+
+		status = DISCONNECTING;
+		break;
+	case DISCONNECTING:
+		if (!lx_usb_wrap->pending_disconnection()) {
+			lx_usb_wrap.destruct();
+			device.destruct();
+			usb.destruct();
+			status = NOTARGET;
 		}
 	}
-	lx_usb_wrap.handle_connect(lx_ep_buffer, num_ep, usb.plugged());
+	if (status == DISCONNECTED && device.constructed()) {
+		device.destruct();
+		lx_usb_wrap.destruct();
+	}
+	if (status == DISCONNECTED && !usb_device_rom.valid()) {
+		usb.destruct();
+		status = NOTARGET;
+	}
 }
 
 void Usb::Lx_wrapper::add_packet_with_urb(Packet_descriptor & p, void * urb,
@@ -270,8 +321,8 @@ void Usb::Lx_wrapper::send_and_receive()
 		_ctrl_task = nullptr;
 	}
 		
-	if(_complete_task) _complete_task->unblock();
-	
+	if(usb_complete_task_struct_ptr)
+		lx_emul_task_unblock(usb_complete_task_struct_ptr);
 	Lx_kit::env().scheduler.unblock_time_handler();
 	Lx_kit::env().scheduler.schedule();
 }
@@ -346,18 +397,13 @@ void Usb::Lx_wrapper::complete(Usb::Packet_descriptor & p)
 int Usb::Lx_wrapper::handle_connect(void *endpoint_buffer, int num_ep,
                                     bool connected)
 {
-	/* assumes that endpoint_buffer is allocated with the right size */
-	if (endpoint_buffer == nullptr)
-	{
-		return true;
-	}
-	else _endpoint_buffer = endpoint_buffer;
-
 	if (!connected) {
-		pending_disconnection = true;
+		_pending_disconnection = true;
 		send_and_receive();
 	}
 	else {
+		_endpoint_buffer = endpoint_buffer;
+
 		for (int i = 0; i < num_ep; ++i)
 		{
 			auto buffer_desc = (Endpoint_descriptor *) lx_usb_host_to_epdesc(
@@ -369,7 +415,9 @@ int Usb::Lx_wrapper::handle_connect(void *endpoint_buffer, int num_ep,
 		pending_connection = true;
 	}
 
-	if(_connect_task) _connect_task->unblock();
+	lx_usb_init_ctx(this);
+	if (usb_connect_task_struct_ptr)
+		lx_emul_task_unblock(usb_connect_task_struct_ptr);
 	Lx_kit::env().scheduler.unblock_time_handler();
 	Lx_kit::env().scheduler.schedule();
 
@@ -377,7 +425,7 @@ int Usb::Lx_wrapper::handle_connect(void *endpoint_buffer, int num_ep,
 }
 
 int Usb::Lx_wrapper::handle_connect_internal()
-{	
+{
 	if ( pending_connection ) {
 		pending_connection = false;
 
@@ -387,11 +435,12 @@ int Usb::Lx_wrapper::handle_connect_internal()
 		return lx_usb_handle_connect(_dev.device_descr.vendor_id,
 		                             _dev.device_descr.product_id,
 		                             (void *)ath9k_idesc, (void *)ath9k_cdesc,
-		                             _endpoint_buffer, this);
+		                             _endpoint_buffer);
 	}
-	else if (pending_disconnection ) {
-		pending_disconnection = false;
+	else if (_pending_disconnection ) {
 		lx_usb_handle_disconnect();
+		_pending_disconnection = false;
+		_pstate_chg.submit();
 	}
 	return 0;
 }
@@ -550,10 +599,11 @@ extern "C" int cxx_usb_control_msg(void *context_ptr, unsigned int pipe,
 
 extern "C" int lx_usb_complete_task(void * in_wrap_struct)
 {
-	Usb::Lx_wrapper * cxx_wrap_struct = (Usb::Lx_wrapper *) in_wrap_struct;
+	Usb::Lx_wrapper * cxx_wrap_struct;
 
 	while(true) {
-		cxx_wrap_struct->send_completions();
+		cxx_wrap_struct = *((Usb::Lx_wrapper **) in_wrap_struct);
+		if (cxx_wrap_struct) cxx_wrap_struct->send_completions();
 		lx_emul_task_schedule(true);
 	}
 	/* never reached */
@@ -562,10 +612,11 @@ extern "C" int lx_usb_complete_task(void * in_wrap_struct)
 
 extern "C" int lx_usb_connect_task(void * in_wrap_struct)
 {
-	Usb::Lx_wrapper * cxx_wrap_struct = (Usb::Lx_wrapper *) in_wrap_struct;
-
+	Usb::Lx_wrapper * cxx_wrap_struct;
+	
 	while(true) {
-		cxx_wrap_struct->handle_connect_internal();
+		cxx_wrap_struct = *((Usb::Lx_wrapper **) in_wrap_struct);
+		if (cxx_wrap_struct) cxx_wrap_struct->handle_connect_internal();
 		lx_emul_task_schedule(true);
 	}
 	/* never reached */

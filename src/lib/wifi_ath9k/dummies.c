@@ -451,6 +451,18 @@ void acpi_device_notify(struct device * dev)
 	lx_emul_trace(__func__);
 }
 
+
+void acpi_device_notify_remove(struct device * dev)
+{
+	lx_emul_trace(__func__);
+}
+
+extern void software_node_notify_remove(struct device * dev);
+void software_node_notify_remove(struct device * dev)
+{
+	lx_emul_trace(__func__);
+}
+
 extern bool dev_add_physical_location(struct device * dev);
 bool dev_add_physical_location(struct device * dev)
 {

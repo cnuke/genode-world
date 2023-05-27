@@ -21,10 +21,32 @@ enum {
 
 static struct usb_driver lx_driver_array[NUM_DRIVERS] = { 0 };
 static int driver_registered[NUM_DRIVERS] = { 0 };
+static int connected_driver = -1;
 static void * cxx_context_ptr;
 
 DECLARE_WAIT_QUEUE_HEAD(usb_kill_urb_queue);
 
+struct task_struct *usb_connect_task_struct_ptr;
+struct task_struct *usb_complete_task_struct_ptr;
+int    lx_usb_complete_task(void * in_wrap_struct);
+int    lx_usb_connect_task(void * in_wrap_struct);
+
+void lx_usb_init(void)
+{
+	pid_t pid;
+
+	pid = kernel_thread(lx_usb_complete_task, &cxx_context_ptr,
+	                    CLONE_FS | CLONE_FILES);
+	usb_complete_task_struct_ptr = find_task_by_pid_ns(pid, NULL);
+	pid = kernel_thread(lx_usb_connect_task, &cxx_context_ptr,
+	                    CLONE_FS | CLONE_FILES);
+	usb_connect_task_struct_ptr = find_task_by_pid_ns(pid, NULL);
+}
+
+void lx_usb_init_ctx(void * ctx)
+{
+	cxx_context_ptr = ctx;
+}
 
 int usb_register_driver(struct usb_driver * new_driver, struct module * owner,
                         const char * mod_name)
@@ -38,10 +60,12 @@ int usb_register_driver(struct usb_driver * new_driver, struct module * owner,
 
 		driver_registered[i] = 1;
 		lx_driver_array[i] = *new_driver;
-		printk("Genode emulation usb driver registered for %s.\n", new_driver->name);
+		printk("Genode emulation usb driver registered for %s.\n",
+		       new_driver->name);
 		return 0;
 	}
-	printk("Error: No driver registration slots remaining after %d drivers registered.\n", NUM_DRIVERS);
+	printk("Error: No driver registration slots remaining after %d drivers"
+	       "registered.\n", NUM_DRIVERS);
 	return -1;
 }
 
@@ -68,6 +92,7 @@ int usb_control_msg(struct usb_device * dev, unsigned int pipe, __u8 request,
 					__u16 size, int timeout)
 {
 	/*printk("Control message, jiffies is %ld, HZ is %ld.\n", jiffies, (long)HZ);*/
+	if (!cxx_context_ptr) return -ENXIO;
 	return cxx_usb_control_msg(cxx_context_ptr, pipe, request, requesttype,
                                value, index, data, size, timeout);
 }
@@ -131,7 +156,9 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	unsigned int genode_pipe;
 	(void) mem_flags;
 
-	if ( !urb || !urb->complete) return -EINVAL;
+	if ( !cxx_context_ptr ) return -ENXIO;
+
+	if ( !urb || !urb->complete ) return -EINVAL;
 
 	if ( atomic_read(&urb->reject) ) return -EPERM;
 
@@ -185,31 +212,31 @@ void lx_usb_do_urb_callback(void * in_urb, int succeeded, int inbound, void * bu
 }
 
 /* A single global device and its interface are allowed */
-static struct usb_host_interface lx_usb_host_if = { 0 };
-static struct usb_device lx_usb_usb_dev = { 0 };
-static struct usb_interface lx_usb_usb_if = { 0 };
-static struct usb_device_id lx_usb_dev_id = {USB_DEVICE(0, 0)};
-static struct usb_host_config lx_usb_host_cfg = { 0 };
+static struct usb_host_interface lx_usb_host_if;
+static struct usb_device lx_usb_usb_dev;
+static struct usb_interface lx_usb_usb_if;
+static struct usb_device_id lx_usb_dev_id;
+static struct usb_host_config lx_usb_host_cfg;
 
+
+static void trivial_release(struct device *ignored) {
+	(void) ignored;
+}
 
 int lx_usb_handle_connect(
 	uint16_t vend_id,
 	uint16_t prod_id,
 	void * if_desc, /* usb_interface_descriptor * */
 	void * cfg_desc, /* usb_config_descriptor * */
-	void * ep_array,
-	void * context_ptr)
+	void * ep_array)
 {	
-	static int device_registered = 0;
-	static int interface_registered = 0;
 	int err;
 	int i;
 	struct usb_host_endpoint * ep0;
 
-	cxx_context_ptr = context_ptr;
-
 	/* Preparation of the usb_host_interface */
-	memcpy(&lx_usb_host_if.desc, if_desc, sizeof(struct usb_host_interface));
+	lx_usb_host_if = (struct usb_host_interface){ 0 };
+	memcpy(&lx_usb_host_if.desc, if_desc, sizeof(struct usb_interface_descriptor));
 	ep0 = (struct usb_host_endpoint *)ep_array;
 	lx_usb_host_if.endpoint = &ep0[1];
 
@@ -219,37 +246,37 @@ int lx_usb_handle_connect(
 
 
 	/* Prepartion of the usb_device */
-	if ( !device_registered ) {
-		lx_usb_usb_dev.devnum = 7; /* lucky number */
-		lx_usb_usb_dev.actconfig = &lx_usb_host_cfg;
-		dev_set_name(&lx_usb_usb_dev.dev, "lx_usb_usb_dev");
-		if ( ( err = device_register(&lx_usb_usb_dev.dev) ) ) {
-			printk("Device register failed.\n");
-			return err;
-		}
-		device_registered = 1;
+	lx_usb_usb_dev = (struct usb_device){ 0 };
+	lx_usb_usb_dev.devnum = 7; /* lucky number */
+	lx_usb_usb_dev.actconfig = &lx_usb_host_cfg;
+	lx_usb_usb_dev.dev.release = &trivial_release;
+	dev_set_name(&lx_usb_usb_dev.dev, "lx_usb_usb_dev");
+	if ( ( err = device_register(&lx_usb_usb_dev.dev) ) ) {
+		printk("Device register failed.\n");
+		return err;
 	}
 
 	/* Preparation of the usb_interface */
-	if ( !interface_registered ) {
-		lx_usb_usb_if.altsetting = &lx_usb_host_if;
-		lx_usb_usb_if.cur_altsetting = &lx_usb_host_if;
-		lx_usb_usb_if.num_altsetting = 1;
-		lx_usb_usb_if.usb_dev = (struct device *)&lx_usb_usb_dev;
-		lx_usb_usb_if.dev.parent = &lx_usb_usb_dev.dev;
-		dev_set_name(&lx_usb_usb_if.dev, "lx_usb_usb_if");
-		if ( ( err = device_register(&lx_usb_usb_if.dev) ) ) {
-			printk("Device register failed creating interface.\n");
-			return err;
-		}
-		interface_registered = 1;
+	lx_usb_usb_if = (struct usb_interface){ 0 };
+	lx_usb_usb_if.altsetting = &lx_usb_host_if;
+	lx_usb_usb_if.cur_altsetting = &lx_usb_host_if;
+	lx_usb_usb_if.num_altsetting = 1;
+	lx_usb_usb_if.usb_dev = (struct device *)&lx_usb_usb_dev;
+	lx_usb_usb_if.dev.parent = &lx_usb_usb_dev.dev;
+	lx_usb_usb_if.dev.release = &trivial_release;
+	dev_set_name(&lx_usb_usb_if.dev, "lx_usb_usb_if");
+	if ( ( err = device_register(&lx_usb_usb_if.dev) ) ) {
+		printk("Device register failed creating interface.\n");
+		return err;
 	}
 	
 	/* Preparation of the usb_device id */
+	lx_usb_dev_id = (struct usb_device_id){ 0 };
 	lx_usb_dev_id.idVendor = vend_id;
 	lx_usb_dev_id.idProduct = prod_id;
 
 	/* Preparation of the usb_host_config */
+	lx_usb_host_cfg = (struct usb_host_config){ 0 };
 	memcpy(&lx_usb_host_cfg.desc, cfg_desc, sizeof(struct usb_config_descriptor));
 	lx_usb_host_cfg.interface[0] = &lx_usb_usb_if;
 
@@ -258,6 +285,7 @@ int lx_usb_handle_connect(
 		err = lx_driver_array[i].probe(&lx_usb_usb_if, &lx_usb_dev_id);
 		if (!err) {
 			printk("Successful probe of vendor_id: %04x and product_id %04x.\n", vend_id, prod_id);
+			connected_driver = i;
 			return 0;
 		}
 		if (err != -ENODEV)
@@ -272,13 +300,15 @@ int lx_usb_handle_connect(
 
 void lx_usb_handle_disconnect(void)
 {
-	int i;
-
-	for (i = 0; i < NUM_DRIVERS; ++i) {
-		if (!driver_registered[i]) continue;
-		/* Hopefully OK to call disconnect on a device that isn't connected */
-		lx_driver_array[i].disconnect(&lx_usb_usb_if);
-	}
+	if (connected_driver < 0) return;
+	printk("Disconnecting lx_driver_array[%d]\n", connected_driver);
+	lx_driver_array[connected_driver].disconnect(&lx_usb_usb_if);
+	connected_driver = -1;
+	printk("The disconnect returned.\n");
+	
+	device_unregister(&lx_usb_usb_if.dev);
+	device_unregister(&lx_usb_usb_dev.dev);
+	cxx_context_ptr = NULL;
 }
 
 
@@ -304,10 +334,10 @@ void lx_usb_setup_urb(void * urb, void * ep)
 }
 
 
-static struct cred _usb_task_cred;
+/*static struct cred _usb_task_cred;*/
 
 /* Based on init_task in lx_emul/start.c */
-struct task_struct usb_comp_task = {
+/*struct task_struct usb_comp_task = {
 	.__state         = 0,
 	.usage           = REFCOUNT_INIT(2),
 	.flags           = PF_KTHREAD,
@@ -366,7 +396,7 @@ struct task_struct usb_conn_task = {
 	.cred            = &_usb_task_cred,
 };
 
-void * lx_emul_usb_conn_struct = &usb_conn_task;
+void * lx_emul_usb_conn_struct = &usb_conn_task;*/
 
 /* these from drivers/usb/core/usb.c */
 struct usb_interface *usb_ifnum_to_if(const struct usb_device *dev,

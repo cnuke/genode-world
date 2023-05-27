@@ -139,14 +139,6 @@ void ack_bad_irq(unsigned int irq)
 }
 
 
-#include <linux/acpi.h>
-
-void acpi_device_notify_remove(struct device * dev)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 #include <linux/kobject.h>
 
 int add_uevent_var(struct kobj_uevent_env * env,const char * format,...)
@@ -912,13 +904,6 @@ int smp_call_function_single_async(int cpu,struct __call_single_data * csd)
 #include <linux/sock_diag.h>
 
 void sock_diag_broadcast_destroy(struct sock * sk)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-extern void software_node_notify_remove(struct device * dev);
-void software_node_notify_remove(struct device * dev)
 {
 	lx_emul_trace_and_stop(__func__);
 }
