@@ -62,9 +62,6 @@
 /* declare manually as it is a internal hack^Winterface */
 extern void wifi_kick_socketcall();
 
-extern bool _wifi_get_rfkill(void);
-extern bool _wifi_set_rfkill(bool);
-
 
 namespace Wifi {
 	struct Frontend;
@@ -78,23 +75,23 @@ static struct Recv_msg_table {
 } recv_table[] = {
 	{ "OK",                            2 },
 	{ "FAIL",                          4 },
+	{ "IFACE-DEINIT",                 12 },
 	{ "CTRL-EVENT-SCAN-RESULTS",      23 },
 	{ "CTRL-EVENT-CONNECTED",         20 },
 	{ "CTRL-EVENT-DISCONNECTED",      23 },
 	{ "SME: Trying to authenticate",  27 },
 	{ "CTRL-EVENT-NETWORK-NOT-FOUND", 28 },
-	{ "IFACE-DEINIT",                 12 },
 };
 
 enum Rmi {
 	OK = 0,
 	FAIL,
+	IFACE_DEINIT,
 	SCAN_RESULTS,
 	CONNECTED,
 	DISCONNECTED,
 	SME_AUTH,
 	NOT_FOUND,
-	IFACE_DEINIT,
 };
 
 
@@ -122,8 +119,10 @@ static bool connecting_to_network(char const *msg) {
 static bool network_not_found(char const *msg) {
 	return check_recv_msg(msg, recv_table[NOT_FOUND]); }
 
+
 static bool iface_deinit(char const *msg) {
 	return check_recv_msg(msg, recv_table[IFACE_DEINIT]); }
+
 
 static bool scan_results(char const *msg) {
 	return Genode::strcmp("bssid", msg, 5) == 0; }
@@ -192,6 +191,7 @@ struct Accesspoint : Genode::Interface
 	bool valid()       const { return ssid.length() > 1; }
 	bool bssid_valid() const { return bssid.length() > 1; }
 	bool wpa()         const { return prot != "NONE"; }
+	bool wpa3()        const { return prot == "WPA3"; }
 	bool stored()      const { return id != -1; }
 };
 
@@ -240,11 +240,13 @@ static void for_each_result_line(char const *msg, FUNC const &func)
 
 		bool const is_wpa1 = Util::string_contains((char const*)s[3], "WPA");
 		bool const is_wpa2 = Util::string_contains((char const*)s[3], "WPA2");
+		bool const is_wpa3 = Util::string_contains((char const*)s[3], "SAE");
 
 		unsigned signal = Util::approximate_quality(s[2]);
 
 		char const *prot = is_wpa1 ? "WPA" : "NONE";
 		            prot = is_wpa2 ? "WPA2" : prot;
+		            prot = is_wpa3 ? "WPA3" : prot;
 
 		Accesspoint ap(s[0], s[1], prot, s[4], signal);
 
@@ -256,7 +258,7 @@ static void for_each_result_line(char const *msg, FUNC const &func)
 /*
  * Wifi driver front end
  */
-struct Wifi::Frontend
+struct Wifi::Frontend : Wifi::Rfkill_notification_handler
 {
 	Frontend(const Frontend&) = delete;
 	Frontend& operator=(const Frontend&) = delete;
@@ -350,7 +352,7 @@ struct Wifi::Frontend
 
 	void _handle_rfkill()
 	{
-		_rfkilled = _wifi_get_rfkill();
+		_rfkilled = Wifi::rfkill_blocked();
 
 		/* re-enable scan timer */
 		if (!_rfkilled) {
@@ -414,7 +416,7 @@ struct Wifi::Frontend
 		 */
 		if (config.has_attribute("rfkill")) {
 			bool const blocked = config.attribute_value("rfkill", false);
-			_wifi_set_rfkill(blocked);
+			Wifi::set_rfkill(blocked);
 
 			/*
 			 * In case we get blocked set rfkilled immediately to prevent
@@ -563,15 +565,17 @@ struct Wifi::Frontend
 		INITIATE_SCAN   = 0x00|SCAN,
 		PENDING_RESULTS = 0x10|SCAN,
 
-		ADD_NETWORK        = 0x00|NETWORK,
-		FILL_NETWORK_SSID  = 0x10|NETWORK,
-		FILL_NETWORK_BSSID = 0x20|NETWORK,
-		FILL_NETWORK_PSK   = 0x30|NETWORK,
-		REMOVE_NETWORK     = 0x40|NETWORK,
-		ENABLE_NETWORK     = 0x50|NETWORK,
-		DISABLE_NETWORK    = 0x60|NETWORK,
-		DISCONNECT_NETWORK = 0x70|NETWORK,
-		LIST_NETWORKS      = 0x80|NETWORK,
+		ADD_NETWORK           = 0x00|NETWORK,
+		FILL_NETWORK_SSID     = 0x10|NETWORK,
+		FILL_NETWORK_BSSID    = 0x20|NETWORK,
+		FILL_NETWORK_KEY_MGMT = 0x30|NETWORK,
+		FILL_NETWORK_PSK      = 0x40|NETWORK,
+		REMOVE_NETWORK        = 0x50|NETWORK,
+		ENABLE_NETWORK        = 0x60|NETWORK,
+		DISABLE_NETWORK       = 0x70|NETWORK,
+		DISCONNECT_NETWORK    = 0x80|NETWORK,
+		LIST_NETWORKS         = 0x90|NETWORK,
+		SET_NETWORK_PMF       = 0xA0|NETWORK,
 
 		CONNECTING   = 0x00|CONNECT,
 		CONNECTED    = 0x10|CONNECT,
@@ -589,16 +593,19 @@ struct Wifi::Frontend
 		case ADD_NETWORK:        return "add network";
 		case FILL_NETWORK_SSID:  return "fill network ssid";
 		case FILL_NETWORK_BSSID: return "fill network bssid";
+		case FILL_NETWORK_KEY_MGMT: return "fill network key_mgmt";
 		case FILL_NETWORK_PSK:   return "fill network pass";
 		case REMOVE_NETWORK:     return "remove network";
 		case ENABLE_NETWORK:     return "enable network";
 		case DISABLE_NETWORK:    return "disable network";
+		case DISCONNECT_NETWORK: return "disconnect network";
 		case CONNECTING:         return "connecting";
 		case CONNECTED:          return "connected";
 		case DISCONNECTED:       return "disconnected";
 		case STATUS:             return "status";
 		case LIST_NETWORKS:      return "list networks";
 		case INFO:               return "info";
+		case SET_NETWORK_PMF:    return "set network pmf";
 		default:                 return "unknown";
 		};
 	}
@@ -949,6 +956,18 @@ struct Wifi::Frontend
 		                     " bssid ", bssid));
 	}
 
+	void _network_set_key_mgmt_sae()
+	{
+		_submit_cmd(Cmd_str("SET_NETWORK ", _processed_ap->id,
+		                     " key_mgmt SAE"));
+	}
+
+	void _network_set_pmf()
+	{
+		_submit_cmd(Cmd_str("SET_NETWORK ", _processed_ap->id,
+		                     " ieee80211w 2"));
+	}
+
 	void _network_set_psk()
 	{
 		if (_processed_ap->wpa()) {
@@ -1045,6 +1064,41 @@ struct Wifi::Frontend
 				_state_transition(_state, State::IDLE);
 			} else {
 
+				/*
+				 * For the moment branch here to handle WPA3-personal-only
+				 * explicitly.
+				 */
+				if (_processed_ap->wpa3()) {
+					_state_transition(_state, State::FILL_NETWORK_KEY_MGMT);
+					_network_set_key_mgmt_sae();
+				} else {
+					_state_transition(_state, State::FILL_NETWORK_PSK);
+					_network_set_psk();
+				}
+
+				successfully = true;
+			}
+			break;
+		case State::FILL_NETWORK_KEY_MGMT:
+			_state_transition(_state, State::IDLE);
+
+			if (!cmd_successful(msg)) {
+				Genode::error("could not set key_mgmt for network: ", msg);
+				_state_transition(_state, State::IDLE);
+			} else {
+				_state_transition(_state, State::SET_NETWORK_PMF);
+				_network_set_pmf();
+
+				successfully = true;
+			}
+			break;
+		case State::SET_NETWORK_PMF:
+			_state_transition(_state, State::IDLE);
+
+			if (!cmd_successful(msg)) {
+				Genode::error("could not set PMF for network: ", msg);
+				_state_transition(_state, State::IDLE);
+			} else {
 				_state_transition(_state, State::FILL_NETWORK_PSK);
 				_network_set_psk();
 
@@ -1510,13 +1564,11 @@ struct Wifi::Frontend
 		} else
 
 		if (iface_deinit(msg)) {
-
 			_state_transition(_state, State::IDLE);
 			_remove_all_aps();
 			/* re-read config if the interface re-connects */
 			_deferred_config_update = true;
-
-		} else
+		}
 
 		{
 			_handle_connection_events(msg);
@@ -1639,13 +1691,13 @@ struct Wifi::Frontend
 	}
 
 	/**
-	 * Get RFKILL signal capability
+	 * Trigger RFKILL notification
 	 *
 	 * Used by the wifi_drv to notify front end.
 	 */
-	Genode::Signal_context_capability rfkill_sigh()
+	void rfkill_notify() override
 	{
-		return _rfkill_handler;
+		_rfkill_handler.local_submit();
 	}
 
 	/**

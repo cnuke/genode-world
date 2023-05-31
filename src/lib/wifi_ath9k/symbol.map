@@ -11,10 +11,11 @@
 		/* Wifi::Socket_call instance */
 		socket_call;
 		/* rfkill interface */
-		_*wifi_*_rfkill*;
+		_*Wifi*rfkill*;
 		/* kick socket_call and uplink wakeup */
 		_*wifi_kick_*;
 		_*uplink_task_wakeup_*;
+		_*Wifi*firmware*;
 
 		/* interface for libnl/wpa_driver_nl82011 */
 		wifi_if*;

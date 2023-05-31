@@ -15,6 +15,7 @@
 #include <base/allocator.h>
 #include <base/env.h>
 #include <base/log.h>
+#include <net/mac_address.h>
 
 /* DDE Linux includes */
 #include <wifi/socket_call.h>
@@ -496,17 +497,31 @@ class Lx::Socket
 
 static Lx::Socket *_socket;
 
+/* implemented in wlan.cc */
+void _wifi_report_mac_address(Net::Mac_address const &mac_address);
 
-extern Genode::Blockade *wpa_blockade;
+extern "C" void wakeup_wpa(void);
 
 extern "C" int socketcall_task_function(void *)
 {
 	static Lx::Socket inst(Lx_kit::env().env.ep());
 	_socket = &inst;
 
-	wpa_blockade->wakeup();
+	wakeup_wpa();
+	void const *mac_addr = nullptr;
 
 	while (true) {
+
+		/*
+		 * Try to report the MAC address once. We have to check
+		 * 'lx_get_mac_addr' as it might by NULL in case 'wlan0'
+		 * is not yet available.
+		 */
+		if (!mac_addr) {
+			mac_addr = lx_get_mac_addr();
+			if (mac_addr)
+				_wifi_report_mac_address({ (void *) mac_addr });
+		}
 
 		_socket->exec_call();
 
@@ -532,6 +547,17 @@ void wifi_kick_socketcall()
 
 Wifi::Socket_call socket_call;
 
+
+extern "C" unsigned int wifi_ifindex(const char *ifname)
+{
+	return socket_call.get_wifi_ifindex(ifname);
+}
+
+
+extern "C" char const *wifi_ifname(void)
+{
+	return "wlan0";
+}
 
 /***************************
  ** Socket_call interface **

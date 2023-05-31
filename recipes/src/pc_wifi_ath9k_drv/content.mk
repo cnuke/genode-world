@@ -7,7 +7,7 @@
 LIB_MK := $(addprefix lib/mk/,wifi_ath9k.inc vfs_wifi_ath9k.mk) \
           $(foreach SPEC,x86_32 x86_64,lib/mk/spec/$(SPEC)/wifi_ath9k.mk)
 
-MIRROR_FROM_REP_DIR := src/drivers/wifi_ath9k_drv/pc \
+MIRROR_FROM_REP_DIR := src/drivers/wifi_ath9k_drv \
                        $(shell cd $(REP_DIR); find src/lib/wifi_ath9k -type f) \
 					   $(shell cd $(REP_DIR); find src/lib/vfs/wifi_ath9k -type f) \
                        $(shell cd $(REP_DIR); find src/drivers/wifi_ath9k_drv -type f) \

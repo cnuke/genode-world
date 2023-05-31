@@ -10,6 +10,7 @@ LIBS    += base jitterentropy pc_linux_generated pc_lx_emul pc_lx_ath9k_extras
 INC_DIR := $(TARGET_LIB_DIR)
 SRC_CC  += wlan.cc
 SRC_CC  += wlan_usb.cc
+SRC_CC  += dtb_helper.cc
 SRC_CC  += misc.cc
 SRC_CC  += time.cc
 SRC_CC  += firmware.cc

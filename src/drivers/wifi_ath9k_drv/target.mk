@@ -1,5 +1,5 @@
 TARGET  := wifi_ath9k_drv
-SRC_CC  := main.cc wpa.cc
+SRC_CC  := main.cc wpa.cc access_firmware.cc
 LIBS    := base wifi_ath9k
 LIBS    += libc
 LIBS    += wpa_supplicant

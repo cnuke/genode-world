@@ -44,7 +44,6 @@ struct Vfs_wlan::File_system : Single_file_system
 		 * So we set it here and wait for the user of the library to
 		 * execute the constructors at the proper time.
 		 */
-
 		Lx_kit::initialize(env.env());
 	}
 

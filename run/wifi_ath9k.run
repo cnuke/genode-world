@@ -73,7 +73,7 @@ import_from_depot [depot_user]/src/[base_src] \
 
 set build_components {
 	app/usb_report_filter
-	drivers/wifi_ath9k_drv/pc
+	drivers/wifi_ath9k_drv
 	server/fs_rom
 	server/vfs
 	server/report_rom
@@ -288,7 +288,7 @@ append config {
 		<binary name="wifi_ath9k_drv"/>
 		<resource name="RAM" quantum="32M"/>
 		<config ld_verbose="yes">
-			<report mac_address="true"/>
+			<report mac_address="false"/>
 			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc" rng="/dev/urandom"/>
 			<vfs>
 				<dir name="dev"> <log/> <null/>

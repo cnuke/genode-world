@@ -15,6 +15,8 @@
 #include <base/attached_rom_dataspace.h>
 #include <base/component.h>
 #include <base/env.h>
+#include <os/reporter.h>
+#include <net/mac_address.h>
 #include <genode_c_api/uplink.h>
 
 /* DDE Linux includes */
@@ -25,19 +27,23 @@
 #include <lx_kit/init.h>
 #include <lx_user/io.h>
 
+/* wifi includes */
+#include <wifi/firmware.h>
+#include <wifi/rfkill.h>
+
 /* local includes */
 #include "lx_user.h"
+#include "dtb_helper.h"
 #include "wlan_usb.h"
 
 using namespace Genode;
 
+/* RFKILL handling */
 
 extern "C" int  lx_emul_rfkill_get_any(void);
 extern "C" void lx_emul_rfkill_switch_all(int blocked);
 /* Disable kernel pointer hashing for debugging */
 extern "C" int no_hash_pointers_enable(char *str);
-
-static Genode::Signal_context_capability _rfkill_sigh_cap;
 
 
 bool _wifi_get_rfkill(void)
@@ -50,7 +56,25 @@ bool _wifi_get_rfkill(void)
 }
 
 
-void _wifi_set_rfkill(bool blocked)
+struct Rfkill_helper
+{
+	Wifi::Rfkill_notification_handler &_handler;
+
+	Rfkill_helper(Wifi::Rfkill_notification_handler &handler)
+	:
+		_handler { handler }
+	{ }
+
+	void submit_notification()
+	{
+		_handler.rfkill_notify();
+	}
+};
+
+Constructible<Rfkill_helper> rfkill_helper { };
+
+
+void Wifi::set_rfkill(bool blocked)
 {
 	if (!rfkill_task_struct_ptr)
 		return;
@@ -70,28 +94,243 @@ void _wifi_set_rfkill(bool blocked)
 	Lx_kit::env().scheduler.unblock_time_handler();
 	Lx_kit::env().scheduler.schedule();
 
-	Genode::Signal_transmitter(_rfkill_sigh_cap).submit();
+	if (rfkill_helper.constructed())
+		rfkill_helper->submit_notification();
 }
 
 
-bool wifi_get_rfkill(void)
+bool Wifi::rfkill_blocked(void)
 {
 	return _wifi_get_rfkill();
 }
 
 
-extern "C" char const *wifi_ifname(void)
+/* Firmware access, move to object later */
+
+struct task_struct;
+
+struct Firmware_helper
 {
-	/* TODO replace with actual qyery */
-	/* But is it necessary? Will there every be more than one? */
-	return "wlan0";
+	Firmware_helper(Firmware_helper const&) = delete;
+	Firmware_helper & operator = (Firmware_helper const&) = delete;
+
+	void *_waiting_task { nullptr };
+	void *_calling_task { nullptr };
+
+	Genode::Signal_handler<Firmware_helper> _response_handler;
+
+	void _handle_response()
+	{
+		if (_calling_task)
+			lx_emul_task_unblock((struct task_struct*)_calling_task);
+
+		Lx_kit::env().scheduler.schedule();
+	}
+
+	Wifi::Firmware_request_handler &_request_handler;
+
+	struct Request : Wifi::Firmware_request
+	{
+		Genode::Signal_context &_response_handler;
+
+		Request(Genode::Signal_context &sig_ctx)
+		:
+			_response_handler { sig_ctx }
+		{ }
+
+		void submit_response() override
+		{
+			switch (state) {
+			case Firmware_request::State::PROBING:
+				state = Firmware_request::State::PROBING_COMPLETE;
+				break;
+			case Firmware_request::State::REQUESTING:
+				state = Firmware_request::State::REQUESTING_COMPLETE;
+				break;
+			default:
+				return;
+			}
+			_response_handler.local_submit();
+		}
+	};
+
+	using S = Wifi::Firmware_request::State;
+
+	Request _request { _response_handler };
+
+	void _update_waiting_task()
+	{
+		if (_waiting_task)
+			if (_waiting_task != lx_emul_task_get_current())
+				warning("Firmware_request: already waiting task is not current task");
+
+		_waiting_task = lx_emul_task_get_current();
+	}
+
+	void _submit_request_and_wait_for(Wifi::Firmware_request::State state)
+	{
+		_calling_task = lx_emul_task_get_current();
+		_request_handler.submit_request();
+
+		do {
+			lx_emul_task_schedule(true);
+		} while (_request.state != state);
+	}
+
+	void _wait_until_pending_request_finished()
+	{
+		while (_request.state != S::INVALID) {
+
+			_update_waiting_task();
+			lx_emul_task_schedule(true);
+		}
+	}
+
+	void _wakeup_any_waiting_request()
+	{
+		_request.state = S::INVALID;
+		if (_waiting_task) {
+			lx_emul_task_unblock((struct task_struct*)_waiting_task);
+			_waiting_task = nullptr;
+		}
+		_calling_task = nullptr;
+	}
+
+	Firmware_helper(Genode::Entrypoint &ep,
+	                       Wifi::Firmware_request_handler &request_handler)
+	:
+		_response_handler { ep, *this, &Firmware_helper::_handle_response },
+		_request_handler  { request_handler }
+	{ }
+
+	size_t perform_probing(char const *name)
+	{
+		_wait_until_pending_request_finished();
+
+		_request.name    = name;
+		_request.state   = S::PROBING;
+		_request.dst     = nullptr;
+		_request.dst_len = 0;
+
+		_submit_request_and_wait_for(S::PROBING_COMPLETE);
+
+		size_t const fw_length = _request.success ? _request.fw_len : 0;
+
+		_wakeup_any_waiting_request();
+
+		return fw_length;
+	}
+
+	int perform_requesting(char const *name, char *dst, size_t dst_len)
+	{
+		_wait_until_pending_request_finished();
+
+		_request.name    = name;
+		_request.state   = S::REQUESTING;
+		_request.dst     = dst;
+		_request.dst_len = dst_len;
+
+		_submit_request_and_wait_for(S::REQUESTING_COMPLETE);
+
+		bool const success = _request.success;
+
+		_wakeup_any_waiting_request();
+
+		return success ? 0 : -1;
+	}
+
+	Wifi::Firmware_request *request()
+	{
+		return &_request;
+	}
+};
+
+
+Constructible<Firmware_helper> firmware_helper { };
+
+
+size_t _wifi_probe_firmware(char const *name)
+{
+	if (firmware_helper.constructed())
+		return firmware_helper->perform_probing(name);
+
+	return 0;
 }
+
+
+int _wifi_request_firmware(char const *name, char *dst, size_t dst_len)
+{
+	if (firmware_helper.constructed())
+		return firmware_helper->perform_requesting(name, dst, dst_len);
+
+	return -1;
+}
+
+
+struct Mac_address_reporter
+{
+	bool _enabled = false;
+ 
+	Net::Mac_address _mac_address { };
+
+	Constructible<Reporter> _reporter { };
+
+	Env &_env;
+
+	Signal_context_capability _sigh;
+
+	Mac_address_reporter(Env &env, Signal_context_capability sigh)
+	: _env(env), _sigh(sigh)
+	{
+		Attached_rom_dataspace config { _env, "config" };
+
+		config.xml().with_optional_sub_node("report", [&] (Xml_node const &xml) {
+			_enabled = xml.attribute_value("mac_address", false); });
+	}
+
+	void mac_address(Net::Mac_address const &mac_address)
+	{
+		_mac_address = mac_address;
+
+		Signal_transmitter(_sigh).submit();
+	}
+
+	void report()
+	{
+		if (!_enabled)
+			return;
+
+		_reporter.construct(_env, "devices");
+		_reporter->enabled(true);
+
+		Reporter::Xml_generator report(*_reporter, [&] () {
+			report.node("nic", [&] () {
+				report.attribute("mac_address", String<32>(_mac_address));
+			});
+		});
+
+		/* report only once */
+		_enabled = false;
+	}
+};
+
+Constructible<Mac_address_reporter> mac_address_reporter;
+
+
+/* used from socket_call.cc */
+void _wifi_report_mac_address(Net::Mac_address const &mac_address)
+{
+	mac_address_reporter->mac_address(mac_address);
+}
+
 
 struct Wlan
 {
 	Env                    &_env;
 	Io_signal_handler<Wlan> _signal_handler { _env.ep(), *this,
 	                                          &Wlan::_handle_signal };
+
+	Dtb_helper _dtb_helper { _env };
 	Wlan_usb _usb_extensions { _env };
 
 	void _handle_signal()
@@ -103,36 +342,63 @@ struct Wlan
 		}
 
 		genode_uplink_notify_peers();
+
+		mac_address_reporter->report();
 	}
 
 	Wlan(Env &env) : _env { env }
 	{
+		Genode::log("Starting wifi_ath9k_drv!");
+		mac_address_reporter.construct(_env, _signal_handler);
+
 		genode_uplink_init(genode_env_ptr(_env),
 		                   genode_allocator_ptr(Lx_kit::env().heap),
 		                   genode_signal_handler_ptr(_signal_handler));
+
 		no_hash_pointers_enable(nullptr);
-		lx_emul_start_kernel(nullptr);
+		lx_emul_start_kernel(_dtb_helper.dtb_ptr());
 	}
 };
 
 
-Genode::Blockade *wpa_blockade;
+static Blockade *wpa_blockade;
 
 
-void wifi_init(Genode::Env      &env,
-               Genode::Blockade &blockade)
+extern "C" void wakeup_wpa()
+{
+	static bool called_once = false;
+	if (called_once)
+		return;
+
+	wpa_blockade->wakeup();
+	called_once = true;
+}
+
+
+void wifi_init(Env &env, Blockade &blockade)
 {
 	wpa_blockade = &blockade;
-
-	/*int volatile dontrun = 1;
-	int volatile * volatile dontrun_access = &dontrun;
-	while (*dontrun_access) { }*/
 
 	static Wlan wlan(env);
 }
 
 
-void wifi_set_rfkill_sigh(Genode::Signal_context_capability cap)
+void Wifi::rfkill_establish_handler(Wifi::Rfkill_notification_handler &handler)
 {
-	_rfkill_sigh_cap = cap;
+	rfkill_helper.construct(handler);
+}
+
+
+void Wifi::firmware_establish_handler(Wifi::Firmware_request_handler &request_handler)
+{
+	firmware_helper.construct(Lx_kit::env().env.ep(), request_handler);
+}
+
+
+Wifi::Firmware_request *Wifi::firmware_get_request()
+{
+	if (firmware_helper.constructed())
+		return firmware_helper->request();
+
+	return nullptr;
 }

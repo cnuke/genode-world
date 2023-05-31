@@ -1,29 +1,45 @@
-The pc_wifi_ath9k_drv component is a port of the Linux mac802.11 stack, including
-the ath9k driver as well as libnl and wpa_supplicant, to Genode.
+The wifi_ath9k_drv component is a port of the Linux mac802.11 stack as well as
+libnl and wpa_supplicant to Genode. This version is focused on usb-based wifi devices.
 
-It behaves mostly the same as the iwlwifi driver-based version
+In contrast to other DDE Linux based drivers the actual driver portion is
+confined to its own library to better isolate the various parts of the driver.
+The 'wifi_drv' binary is the generic management part that includes the Wifi
+configuration interface and the 'wpa_supplicant'. A suitable driver library
+is loaded at run-time (see section [Debugging]).
 
-To start the component the following configuration snippet can be used:
+To start the component on the PC platform the following configuration snippet
+can be used (assuming you want verbose logging):
 
 !<start name="wifi_ath9k_drv" caps="250">
 !  <resource name="RAM" quantum="64M"/>
+!  <provides><service name="Nic"/></provides>
 !  <config>
 !    <libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc"/>
 !    <vfs>
-!      <dir name="dev"> <null/> <zero/> <log/> <rtc/> <wifi_ath9k/>
-!        <jitterentropy name="random"/>
-!        <jitterentropy name="urandom"/>
-         <inline name="rtc">2018-01-01 00:01</inline>
+!      <dir name="dev"> <log/> <null/> <rtc/> <wifi_ath9k/>
+!          <jitterentropy name="random"/>
+!          <jitterentropy name="urandom"/>
 !      </dir>
+!      <dir name="firmware"> <tar name="wifi_firmware.tar"/> </dir>
 !    </vfs>
 !  </config>
 !  <route>
-!    <service name="Uplink"> <child name="nic_router" label="wifi_drv ->"/> </service>
-     <service name="Platform"> <parent label="usb"/> </service>
-	 <service name="Rom" label="wifi_config"> <parent label="config -> managed/wifi"/> </service>
+!    <service name="ROM" label="wifi.lib.so">
+!      <parent label="wifi_ath9k.lib.so"/>
+!    </service>
+!    <service name="ROM" label="wifi_firmware.tar">
+!      <parent label="pc_wifi_firmware.tar"/>
+!    </service>
+!    <service name="Rtc"> <any-child /> </service>
 !    <any-service> <parent/> <any-child /> </any-service>
 !  </route>
-!</start
+!</start>
+
+Depending on the used device additional firmware images might be
+required. The driver will request them by accessing the '/firmware'
+directory in the driver's local VFS. It is up to the configuration
+how those files are made available. In these examples they are
+contained in an '.tar' archive that is request as a ROM module.
 
 The driver will request access to the ROM module 'wifi_config' to
 connect to a network:
@@ -35,8 +51,9 @@ connect to a network:
 To temporarily prevent any radio activity, the 'rfkill' attribute
 can be set to 'true'.
 
-If the network is protected by, e.g., WPA/WPA2, the protection type, either
-'WPA' or 'WPA2' as well as the the passphrase have to be specified.
+If the network is protected by, e.g., WPA/WPA2/WPA3, the protection type,
+either 'WPA', 'WPA2' or 'WPA3' as well as the the passphrase have to be
+specified.
 The 'bssid' attribute can be used to select a specifc accesspoint within a
 network. Of all attributes only the 'ssid' attribute is mandatory, all others
 are optional and should only be used when needed.
@@ -96,13 +113,9 @@ the 'rfkill' attribute.
 By subscribing to both reports and providing the required 'wifi_config' ROM
 module, a component is able control the wireless driver.
 
-Currently only WPA/WPA2 protection using a passphrase is supported and the the
-SSID is copied verbatim. At the moment, there is no way to express or escape
-non alphanumeric characters.
-
-On certain cards, e.g. Intel Wireless 6200 ABG, it may be necessary to disable
-the 11n mode. This can be achieved by setting the 'use_11n' attribute in
-the 'wifi_config' node to 'no'.
+Currently only WPA/WPA2/WPA3 protection using a passphrase is supported and
+the SSID is copied verbatim. At the moment, there is no way to express or
+escape non alphanumeric characters.
 
 The driver optionally reports the following information under the
 label "devices" if requested in the config as depicted.
@@ -110,3 +123,19 @@ label "devices" if requested in the config as depicted.
 ! <config> <report mac_address="true"/> </config>
 
 ! <devices> <nic mac_address="02:00:00:00:00:01"/> </devices>
+
+
+Debugging
+~~~~~~~~~
+
+As mentioned in the introduction the 'wifi_drv' component is special in the
+regard that the actual driver is provided as a shared-object to better isolate
+it from the the driver binary that is a Libc::Component managing the
+'wpa_supplicant'. Since this code and in return the binary is the same for each
+platform it is linked against an artifical 'wifi' library that only exists as
+an ABI stub created via 'lib/symbols/wifi'. In case the driver is integrated
+via depot archives this is, besides setting the proper ROM routes, of no
+concern. However, when the driver is built without the depot, the boot image
+assemble-mechanism tries to include the non-existent 'wifi.lib.so' library. To
+prevent that from failing one way is adding a dummy file - the
+'repos/pc/run/pc_wifi.run' illustrates how to do that.
