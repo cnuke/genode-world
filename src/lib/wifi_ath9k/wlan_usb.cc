@@ -99,7 +99,7 @@ void Genode::Wlan_usb::handle_state_change()
 		if (usb->plugged()) {
 			Genode::log("Device plugged.");
 			device.construct(&heap, *usb, ep);
-			lx_usb_wrap.construct(*device, ep,
+			lx_usb_wrap.construct(*usb, *device, ep,
 				Genode::Signal_transmitter(state_change_dispatcher));
 			
 			device->update_config();
@@ -461,7 +461,15 @@ int Usb::Lx_wrapper::usb_control_msg(unsigned int pipe, Genode::uint8_t request,
 	if ( !_dev.config ) return -1;
 	Usb::Interface &iface = _dev.interface(0);
 
-	Usb::Packet_descriptor p = iface.alloc(size);
+	Usb::Packet_descriptor p { };
+
+	try {
+		p = _usb.source()->alloc_packet(size);
+	} catch (Usb::Session::Tx::Source::Packet_alloc_failed) {
+		Genode::warning(__func__, ": allocating packet failed");
+		return -12 /* ENOMEM */;
+	}
+
 	if (!(pipe & Usb::ENDPOINT_IN))
 		Genode::memcpy(iface.content(p), data, size);
 	_ctrl_status = PENDING_OUT;

@@ -33,6 +33,7 @@ namespace Usb {
 class Usb::Lx_wrapper : Usb::Completion
 {
   private:
+	Usb::Connection & _usb;
 	Device & _dev;
 	Genode::Entrypoint & _ep;
 	Genode::Signal_transmitter _pstate_chg;
@@ -112,8 +113,9 @@ class Usb::Lx_wrapper : Usb::Completion
 
   public:
 
-	Lx_wrapper(Device & dev, Genode::Entrypoint & ep,
+	Lx_wrapper(Usb::Connection &usb, Device & dev, Genode::Entrypoint & ep,
 	           Genode::Signal_transmitter parent_state_chg) :
+	           _usb { usb },
 			   _dev(dev), _ep(ep), _pstate_chg(parent_state_chg) { }
 
 	~Lx_wrapper() { }
