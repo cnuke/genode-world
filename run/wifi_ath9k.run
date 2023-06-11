@@ -73,14 +73,14 @@ import_from_depot [depot_user]/src/[base_src] \
 
 set build_components {
 	app/usb_report_filter
-	drivers/wifi_ath9k_drv
+	drivers/wifi
 	server/fs_rom
 	server/vfs
 	server/report_rom
 	server/dynamic_rom
 	server/nic_router
 	test/lwip/http_srv
-	lib/vfs_wifi_ath9k
+	lib/vfs_wifi
 	lib/vfs_jitterentropy
 	lib/vfs_lwip
 	lib/vfs_import
@@ -227,6 +227,7 @@ append config {
 	<client label="wifi_drv"/>
 	<device vendor_id="0x0cf3" product_id="0x9271"/>
 	<device vendor_id="0x050d" product_id="0x1103"/>
+	<device vendor_id="0x07d1" product_id="0x3c16"/>
 </config>
 					</inline>
 				</import>
@@ -285,7 +286,6 @@ append config {
 	</start>
 
 	<start name="wifi_drv" caps="250" priority="-1">
-		<binary name="wifi_ath9k_drv"/>
 		<resource name="RAM" quantum="32M"/>
 		<config ld_verbose="yes">
 			<report mac_address="false"/>
@@ -295,7 +295,7 @@ append config {
 					<inline name="rtc">2023-01-22 12:00</inline>
 					<jitterentropy name="random"/>
 					<jitterentropy name="urandom"/>
-					<wifi_ath9k/>
+					<wifi/>
 				</dir>
 			</vfs>
 		</config>
@@ -306,6 +306,7 @@ append config {
 			<service name="Report" label="accesspoints"> <child name="accesspoints_report_rom"/> </service>
 			<service name="Report" label="state"> <child name="state_report_rom"/> </service>
 			<service name="ROM" label="wifi_config"> <child name="config_rom"/> </service>
+			<service name="ROM" label="wifi.lib.so"> <parent label="wifi_ath9k.lib.so"/> </service>
 			<service name="ROM" label="usb_devices"> <child name="report_rom"/> </service>
 			<any-service> <parent/> <any-child/> </any-service>
 		</route>
@@ -342,13 +343,13 @@ set firmware_modules {
 
 # generic modules
 set boot_modules {
-	core ld.lib.so init timer report_rom dynamic_rom
+	core ld.lib.so timer report_rom dynamic_rom
 	vfs_jitterentropy.lib.so
 	libc.lib.so vfs.lib.so vfs_import.lib.so libcrypto.lib.so libssl.lib.so
 	wpa_driver_nl80211.lib.so wpa_supplicant.lib.so
-	wifi_ath9k_drv wifi_ath9k.lib.so vfs_wifi_ath9k.lib.so
+	wifi_drv vfs_wifi.lib.so wifi_ath9k.lib.so
 	nic_router usb_report_filter fs_rom vfs
-	platform_drv acpi_drv pci_decode
+
 	test-lwip_httpsrv
 	vfs_lwip.lib.so
 }
