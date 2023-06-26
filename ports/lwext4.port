@@ -3,7 +3,7 @@ VERSION   := git
 DOWNLOADS := lwext4.git
 
 URL(lwext4) := https://github.com/gkostka/lwext4.git
-REV(lwext4) := c5f8d135cf3555404f1c4df5617f94f4fc2bac87
+REV(lwext4) := 58bcf89a121b72d4fb66334f1693d3b30e4cb9c5
 DIR(lwext4) := src/lib/lwext4
 
 DIRS := include
