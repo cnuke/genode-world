@@ -1,2 +1,2 @@
 module ServiceControl
-plugin ServiceControl
+plugin servicecontrolplugin

@@ -32,6 +32,21 @@ function openDB() {
 // Save Contact Info
 function storeContact(revision, name, sipaddress, icon) {
     var db = openDB();
+
+    var already_stored = false;
+
+    /* assume the sipaddress always is unique */
+    db.transaction(function(tx) {
+        var rs = tx.executeSql('SELECT * FROM latestcontacts WHERE sipaddress=?;', [sipaddress]);
+
+        if (rs.rows.length > 0) {
+            already_stored = true;
+        }
+    });
+
+    if (already_stored)
+        return;
+
     db.transaction(function(tx){
         tx.executeSql('INSERT OR REPLACE INTO latestcontacts (revision, name, sipaddress, icon) VALUES(?, ?, ?, ?)', [revision, name, sipaddress, icon]); //null is the automatic id
     });
@@ -88,7 +103,7 @@ function getFavorite(id) {
         } else {
             fav_name = null;
             fav_sipaddress = null;
-            console.log("getFavorite: info set to null");
+            //console.log("getFavorite: info set to null");
         }
 
     });

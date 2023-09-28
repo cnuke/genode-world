@@ -19,7 +19,6 @@
 import QtQuick 2.4
 import Qt.labs.settings 1.0
 import Ubuntu.Components 1.3
-import QtSystemInfo 5.2
 
 import "components"
 import ServiceControl 1.0
@@ -52,11 +51,6 @@ MainView {
 
     property string pendingNumberToDial: ""
     property bool accountReady: false
-
-    ScreenSaver {
-        id: screenSaver
-        screenSaverEnabled: !(Qt.application.active && linphoneSettings.keepDisplayOn)
-    }
 
     Settings {
         id: generalSettings
@@ -94,7 +88,7 @@ MainView {
 
         Component.onCompleted: {
             if (!serviceFileInstalled) {
-                console.log('Service file not installed, installing now')
+                //console.log('Service file not installed, installing now')
                 installServiceFile(linphoneSettings.exitLinphoneCompletly);
             }
 
@@ -107,7 +101,7 @@ MainView {
             Linphone.setConfig('sound/local_ring', '/opt/click.ubuntu.com/linphone.cibersheep/current/ringtones/Ubuntu.wav')
 
             if (!serviceRunning) {
-                console.log('Service not running, starting now')
+                //console.log('Service not running, starting now')
                 startService();
             }
 
@@ -123,9 +117,9 @@ MainView {
         //view.minimumWidth  = units.gu(40)
         //view.minimumHeight = units.gu(71)
 
-        if (generalSettings.firstRun) {
-            pageStackNormalMode.push(Qt.createComponent("WelcomePage.qml"));
-        }
+        /* if (generalSettings.firstRun) { */
+        /*     pageStackNormalMode.push(Qt.createComponent("WelcomePage.qml")); */
+        /* } */
     }
 
     PageStack {
@@ -135,7 +129,7 @@ MainView {
 
     Component.onDestruction: {
         if (linphoneSettings.exitLinphoneCompletly) {
-            console.log("Stopping Service and Closing App")
+            //console.log("Stopping Service and Closing App")
             serviceControl.stopService()
         }
     }

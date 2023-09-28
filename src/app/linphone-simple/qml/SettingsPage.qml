@@ -30,12 +30,14 @@ Page {
 
             ListItemLayout {
                 id: logged
-                title.text: !emptyCredentials ? i18n.tr("Logged in as:") : i18n.tr("Log in with Existing Account")
+                title.text: !emptyCredentials || registered ? i18n.tr("Logged in as:") : i18n.tr("Log in with Existing Account")
                 title.color: theme.name === "Ubuntu.Components.Themes.SuruDark"
                     ? Theme.palette.normal.baseText
                     : darkColor
 
-                subtitle.text: !emptyCredentials ? activeAccount.account == i18n.tr("offline") ? i18n.tr("Connecting") : activeAccount.account : i18n.tr("or create a free Linphone SIP account online")
+                subtitle.text: !emptyCredentials || registered ? activeAccount.account == i18n.tr("offline") ? i18n.tr("Connecting")
+                                                                                                             : activeAccount.account
+                                                               : i18n.tr("or create a free Linphone SIP account online")
             }
 
             Row {
@@ -44,9 +46,9 @@ Page {
 
                 Button {
                     visible: parent.visible
-                    text: !emptyCredentials ? i18n.tr("Log out") : i18n.tr("Log in")
+                    text: !emptyCredentials || registered ? i18n.tr("Log out") : i18n.tr("Log in")
                     onClicked: {
-                        if (!emptyCredentials) {
+                        if (!emptyCredentials || registered) {
                             Linphone.command("unregister");
                             accountInfo.lastDomain = "";
                             accountInfo.lastUsername = "";
@@ -54,6 +56,7 @@ Page {
                     }
                 }
 
+                /*
                 Button {
                     visible: emptyCredentials
                     text: i18n.tr("Create")
@@ -61,6 +64,7 @@ Page {
                         pageStackNormalMode.push(Qt.createComponent("WebviewPage.qml"))
                     }
                 }
+                */
             }
 
             ListItemLayout {
@@ -73,6 +77,7 @@ Page {
                 subtitle.text: accountInfo.lastUsername + "@" + accountInfo.lastDomain
             }
 
+            /*
             ListItemLayout {
                 title.text: i18n.tr("Stop Linphone when close")
                 title.color: theme.name === "Ubuntu.Components.Themes.SuruDark"
@@ -126,6 +131,7 @@ Page {
                     }
                 }
             }
+            */
         }
     }
 }

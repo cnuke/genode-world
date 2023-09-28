@@ -47,7 +47,6 @@ Item {
             implicitHeight: keysHeight
             label: i18n.tr("1")
             keycode: Qt.Key_1
-            soundSource: "../ringtones/Dtmf1.ogg"
             onPressed: keypad.keyPressed(keycode, "1")
             onPressAndHold: keypad.keyPressAndHold(keycode, "1")
             iconSource: showVoicemail ? "voicemail" : ""
@@ -65,7 +64,6 @@ Item {
             implicitHeight: keysHeight
             label: i18n.tr("2")
             keycode: Qt.Key_2
-            soundSource: "../ringtones/Dtmf2.ogg"
             onPressed: keypad.keyPressed(keycode, "2")
             onPressAndHold: keypad.keyPressAndHold(keycode, "2")
             labelFont.pixelSize: keypad.labelPixelSize
@@ -82,7 +80,6 @@ Item {
             implicitHeight: keysHeight
             label: i18n.tr("3")
             keycode: Qt.Key_3
-            soundSource: "../ringtones/Dtmf3.ogg"
             onPressed: keypad.keyPressed(keycode, "3")
             onPressAndHold: keypad.keyPressAndHold(keycode, "3")
             labelFont.pixelSize: keypad.labelPixelSize
@@ -99,7 +96,6 @@ Item {
             implicitHeight: keysHeight
             label: i18n.tr("4")
             keycode: Qt.Key_4
-            soundSource: "../ringtones/Dtmf4.ogg"
             onPressed: keypad.keyPressed(keycode, "4")
             onPressAndHold: keypad.keyPressAndHold(keycode, "4")
             labelFont.pixelSize: keypad.labelPixelSize
@@ -116,7 +112,6 @@ Item {
             implicitHeight: keysHeight
             label: i18n.tr("5")
             keycode: Qt.Key_5
-            soundSource: "../ringtones/Dtmf5.ogg"
             onPressed: keypad.keyPressed(keycode, "5")
             onPressAndHold: keypad.keyPressAndHold(keycode, "5")
             labelFont.pixelSize: keypad.labelPixelSize
@@ -133,7 +128,6 @@ Item {
             implicitHeight: keysHeight
             label: i18n.tr("6")
             keycode: Qt.Key_6
-            soundSource: "../ringtones/Dtmf6.ogg"
             onPressed: keypad.keyPressed(keycode, "6")
             onPressAndHold: keypad.keyPressAndHold(keycode, "6")
             labelFont.pixelSize: keypad.labelPixelSize
@@ -149,7 +143,6 @@ Item {
             implicitWidth: keysWidth
             implicitHeight: keysHeight
             label: i18n.tr("7")
-            soundSource: "../ringtones/Dtmf7.ogg"
             onPressed: keypad.keyPressed(keycode, "7")
             onPressAndHold: keypad.keyPressAndHold(keycode, "7")
             labelFont.pixelSize: keypad.labelPixelSize
@@ -166,7 +159,6 @@ Item {
             implicitHeight: keysHeight
             label: i18n.tr("8")
             keycode: Qt.Key_8
-            soundSource: "../ringtones/Dtmf8.ogg"
             onPressed: keypad.keyPressed(keycode, "8")
             onPressAndHold: keypad.keyPressAndHold(keycode, "8")
             labelFont.pixelSize: keypad.labelPixelSize
@@ -183,7 +175,6 @@ Item {
             implicitHeight: keysHeight
             label: i18n.tr("9")
             keycode: Qt.Key_9
-            soundSource: "../ringtones/Dtmf9.ogg"
             onPressed: keypad.keyPressed(keycode, "9")
             onPressAndHold: keypad.keyPressAndHold(keycode, "9")
             labelFont.pixelSize: keypad.labelPixelSize
@@ -202,7 +193,6 @@ Item {
             corner: Qt.BottomLeftCorner
             label: i18n.tr("*")
             keycode: Qt.Key_Asterisk
-            soundSource: "../ringtones/DtmfAsterisk.ogg"
             onPressed: keypad.keyPressed(keycode, "*")
             onPressAndHold: keypad.keyPressAndHold(keycode, "*")
             labelFont.pixelSize: keypad.labelPixelSize
@@ -221,7 +211,6 @@ Item {
             sublabel: i18n.tr("+")
             sublabelSize: "medium"
             keycode: Qt.Key_0
-            soundSource: "../ringtones/Dtmf0.ogg"
             onPressed: keypad.keyPressed(keycode, "0")
             onPressAndHold: keypad.keyPressAndHold(keycode, "0")
             labelFont.pixelSize: keypad.labelPixelSize
@@ -240,7 +229,6 @@ Item {
             corner: Qt.BottomRightCorner
             label: i18n.tr("#")
             keycode: Qt.Key_ssharp
-            soundSource: "../ringtones/DtmfPound.ogg"
             onPressed: keypad.keyPressed(keycode, "#")
             onPressAndHold: keypad.keyPressAndHold(keycode, "#")
             labelFont.pixelSize: keypad.labelPixelSize

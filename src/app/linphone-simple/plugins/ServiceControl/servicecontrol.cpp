@@ -6,7 +6,7 @@
 #include <QDir>
 #include <QDebug>
 #include <QCoreApplication>
-#include <QProcess>
+// #include <QProcess>
 
 ServiceControl::ServiceControl(QObject *parent) : QObject(parent)
 {
@@ -165,12 +165,13 @@ bool ServiceControl::removeServiceFile()
 
 bool ServiceControl::serviceRunning() const
 {
-    QProcess p;
-    p.start("initctl", {"status", m_serviceName});
-    p.waitForFinished();
-    QByteArray output = p.readAll();
-    qDebug() << output;
-    return output.contains("running");
+    // QProcess p;
+    // p.start("initctl", {"status", m_serviceName});
+    // p.waitForFinished();
+    // QByteArray output = p.readAll();
+    // qDebug() << output;
+    // return output.contains("running");
+	return false;
 }
 
 bool ServiceControl::setServiceRunning(bool running)
@@ -186,20 +187,20 @@ bool ServiceControl::setServiceRunning(bool running)
 bool ServiceControl::startService()
 {
     qDebug() << "should start service";
-    int ret = QProcess::execute("start", {m_serviceName});
+    int ret = -1;//QProcess::execute("start", {m_serviceName});
     return ret == 0;
 }
 
 bool ServiceControl::stopService()
 {
     qDebug() << "should stop service";
-    int ret = QProcess::execute("stop", {m_serviceName});
+    int ret = -1;//QProcess::execute("stop", {m_serviceName});
     return ret == 0;
 }
 
 bool ServiceControl::restartService()
 {
     qDebug() << "should restart service";
-    int ret = QProcess::execute("restart", {m_serviceName});
+    int ret = -1;//QProcess::execute("restart", {m_serviceName});
     return ret == 0;
 }

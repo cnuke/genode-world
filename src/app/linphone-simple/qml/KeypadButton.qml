@@ -18,7 +18,7 @@
 
 import QtQuick 2.4
 import Ubuntu.Components 1.3
-import QtMultimedia 5.4
+//import QtMultimedia 5.4
 
 MouseArea {
     id: button
@@ -31,7 +31,6 @@ MouseArea {
     property int keycode
     property bool isCorner: false
     property int corner
-    property alias soundSource: sound.source
     
     UbuntuShape {
         objectName: "keypadButtonUbuntuShape"
@@ -97,11 +96,7 @@ MouseArea {
         }
     }
     
-    MediaPlayer {
-        id: sound
-    }
     
     onPressed: {
-        sound.play();
     }
 }

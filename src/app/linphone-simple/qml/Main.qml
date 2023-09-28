@@ -44,6 +44,7 @@ Page {
     property bool answered: false
     property bool speakerEnabled: true
     property bool keypadVisible: false
+    property bool registered: false
     property var bottomEdge: null
     property int iconRotation
 
@@ -55,6 +56,8 @@ Page {
 
     property string pendingNumberToDial: ""
     property bool accountReady: false
+
+    property string authtoken: ""
 
     Settings {
         id: theming
@@ -77,11 +80,11 @@ Page {
 
         //Check if opened the app because we have an incoming call
         if (args.values.url && (args.values.url.match(/^linphone/) || args.values.url.match(/^sip/))) {
-            console.log("Incoming Call on Closed App");
+            //console.log("Incoming Call on Closed App");
             handleUrl(args.values.url);
 
         } else if (Qt.application.arguments && Qt.application.arguments.length > 0) {
-            console.log("Incoming Call fromArguments")
+            //console.log("Incoming Call fromArguments")
 
             //TODO: Do we need to handle more than 1 url?
             for (var i = 0; i < Qt.application.arguments.length; i++) {
@@ -213,10 +216,10 @@ Page {
         target: UriHandler
 
         onOpened: {
-            console.log('Open from UriHandler')
+            //console.log('Open from UriHandler')
 
             if (uris.length > 0) {
-                console.log('Incoming call from UriHandler ' + uris[0]);
+                //console.log('Incoming call from UriHandler ' + uris[0]);
                 handleUrl(uris[0]);
             }
         }
@@ -232,7 +235,7 @@ Page {
 
             //No calls
             if (statusTextReceived.indexOf("No active call") !== -1) { //No need for a « && incomingCall» as we only get this when in a call we ask for «generic calls»
-                console.log("onReadStatus: No active calls");
+                //console.log("onReadStatus: No active calls");
                 incomingCall = false;
                 //This should be done in IncomingCall.qml
                 onCallFav = false;
@@ -241,6 +244,8 @@ Page {
                 answered = false;
                 onCall = false;
 
+                authtoken = "";
+
                 //Finish current call, so enable the speaker
                 Linphone.enableSpeaker();
                 speakerEnabled = true;
@@ -248,40 +253,63 @@ Page {
 
             //Registered?
             if (statusTextReceived.indexOf("registered,") !== -1) {
-                console.log("onReadStatus: Account registered");
+                //console.log("onReadStatus: Account registered");
                 //Slice at indexOf("identity=sip:") + 13, intead of ":" to prevent issue 29
                 //https://gitlab.com/ubports-linphone/linphone-simple/issues/29
-                activeAccount.account = statusTextReceived.slice(statusTextReceived.indexOf("identity=sip:") + 13, statusTextReceived.indexOf(" duration"));
+                activeAccount.account = statusTextReceived.slice(statusTextReceived.indexOf("identity=sip:") + 13,
+                                        statusTextReceived.indexOf(" duration"));
 
                 //We should check that we are not in another stdout result
 
+                registered = true;
+
             } else if (statusTextReceived.indexOf("registered=") !== -1) {
-                console.log("onReadStatus: Account offline");
+                //console.log("onReadStatus: Account offline");
                 activeAccount.account = i18n.tr("offline");
+                registered = false;
             }
 
             //Check if we are reciving an incoming call but we are not already in one
-            if (statusTextReceived.indexOf("IncomingReceived") !== -1) {
-                console.log("onReadStatus: IncomingReceived");
+            if (statusTextReceived.indexOf("incoming call") !== -1 || statusTextReceived.indexOf("IncomingReceived") !== -1) {
+                //console.log("onReadStatus: IncomingReceived");
                 if (!incomingCall) {
-                    console.log("onReadStatus: on IncomingReceived and !incomingCall");
+                    //console.log("onReadStatus: on IncomingReceived and !incomingCall");
                     incomingCall = true;
+
+                    // extract '... <sip:foo@domain.tld>, ...' -> foo, domain.tld
                     var caller = statusTextReceived.slice(statusTextReceived.indexOf("sip:") + 4);
                     caller = caller.slice(0,caller.indexOf(" "));
-                    showIncomingCall(caller);
-                } else console.log("We are receiving a call but we are already in one");
+                    caller = caller.replace(/\>,$/, "").split("@");
 
-            } else console.log("onReadStatus: not IncomingReceived");
+                    showIncomingCall(caller);
+                } //else console.log("We are receiving a call but we are already in one");
+
+            } //else console.log("onReadStatus: not IncomingReceived");
 
             if (statusTextReceived.indexOf("OutgoingRinging") !== -1 && !incomingCall) {
-                console.log("onReadStatus: OutgoingRinging");
+                //console.log("onReadStatus: OutgoingRinging");
             }
 
             //We are in a call
             if (statusTextReceived.indexOf("StreamsRunning") !== -1 && !incomingCall) {
-                console.log("onReadStatus: StreamsRunning");
+                //console.log("onReadStatus: StreamsRunning");
                 answered = true;
             }
+
+            // extract token from 'Call ID is fully encrypted and auth token is aabb...'
+            if (statusTextReceived.indexOf("auth token is") !== -1) {
+               authtoken = statusTextReceived.slice(statusTextReceived.indexOf("token is ") + 9);
+
+               PopupUtils.open(sasInfoPopupComponent);
+            }
+        }
+    }
+
+    Component {
+        id: sasInfoPopupComponent
+
+        SasInfoPopup {
+            anchors.fill: parent
         }
     }
 
@@ -317,30 +345,40 @@ Page {
     function showIncomingCall(callerInfo) {
         showId = callerInfo[0] || i18n.tr("Unkown")
         showDomain = callerInfo[1] || ""
-        console.log("Receive: " + callerInfo)
-        console.log("ID name: " + showId)
         PopupUtils.open(incomingCallComponent);
     }
 
-    function addAddressToFavorite(sipAdress) {
+    function addAddressToFavorite(id, sipAdress) {
+        var contactInfo = sipAdress.split("@")
+        FavContactsDB.storeContact(Date(), id, contactInfo[0], sipAdress, "icon")
+    }
+
+    function addAddressToContacts(sipAdress) {
         var contactInfo = sipAdress.split("@")
         FavContactsDB.storeContact(Date(), contactInfo[0], sipAdress, "icon")
     }
 
     function checkBeforeCall(sipNumber) {
         if (!onCall) {
-            console.log("Try to call to " + sipCall.text)
+            //console.log("Try to call to " + sipNumber)
             onCall = true
             mainCol.visible = false
 
             //If you try to call a «regular» number, add it the domain
-            if (sipNumber.indexOf("@") == -1 && accountInfo.lastDomain !== "") { sipCall.text = sipCall.text + "@" + accountInfo.lastDomain}
+            if (sipNumber.indexOf("@") == -1 && accountInfo.lastDomain !== "") {
+                sipNumber = sipNumber + "@" + accountInfo.lastDomain
+            }
 
             //Set info in outgoingCall
-            outgoingCallComponent.showId = sipNumber.split("@")[0]
-            outgoingCallComponent.showDomain = sipNumber.split("@")[1]
+            if (sipNumber.indexOf("@") == -1) {
+                outgoingCallComponent.showId = sipNumber
+                outgoingCallComponent.showDomain = ""
+            } else {
+                outgoingCallComponent.showId = sipNumber.split("@")[0]
+                outgoingCallComponent.showDomain = sipNumber.split("@")[1]
+            }
 
-            addAddressToFavorite(sipNumber)
+            addAddressToContacts(sipNumber)
             updateContactList()
 
             Linphone.disableSpeaker();
@@ -348,13 +386,13 @@ Page {
 
             // TODO check if the user provided a non-standard port
             //Replace 'sip:' 'http(s):' '/' ':number'
-            Linphone.call("sip:" + sipCall.text.replace(/sip\:|\:(\d+)|https\:|http\:|\//gi,"") + ":5060")
-            return sipNumber;
+            /* Linphone.call("sip:" + sipNumber.replace(/sip\:|\:(\d+)|https\:|http\:|\//gi,"") + ":5060") */
+            Linphone.call(sipNumber);
 
         } else {
             // !onCall
             sipCall.text = ""
-            console.log("Hanging up")
+            //console.log("Hanging up")
             Linphone.terminate()
             Linphone.enableSpeaker();
             speakerEnabled = true;
@@ -369,6 +407,7 @@ Page {
 
     Timer {
         id: checkStatus
+        interval: 5000
         repeat: true
 
         onTriggered: {

@@ -1,2 +1,2 @@
 module Linphone
-plugin Linphone
+plugin linphoneplugin

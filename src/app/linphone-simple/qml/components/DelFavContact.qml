@@ -35,7 +35,7 @@ Dialog {
     }
 
     function closingPop() {
-        console.log("ClosingPop triggered")
+        //console.log("ClosingPop triggered")
         addFavContact.hide()
     }
 
@@ -45,7 +45,7 @@ Dialog {
 
     Component.onDestruction: {
         //To be used when PopupBase is closed
-        console.log("Popup destroyed")
+        //console.log("Popup destroyed")
     }
 
 }

@@ -118,7 +118,7 @@ PopupBase {
                     id: pressArea
                     anchors.fill: parent
                     onClicked: {
-                        console.log("Answer Incoming Call")
+                        //console.log("Answer Incoming Call")
 
                         //Fix: Dirty hack. Start counting when answer
                         duration = 0
@@ -129,6 +129,9 @@ PopupBase {
 
                         //Answer button should disappear when answer :)
                         answerCall.visible = false
+
+                        addAddressToContacts(showId + "@" + showDomain)
+                        updateContactList()
                     }
                 }
             }
@@ -164,7 +167,7 @@ PopupBase {
                     id: pressArea2
                     anchors.fill: parent
                     onClicked: {
-                        console.log("Hang up and close popup")
+                        //console.log("Hang up and close popup")
                         Linphone.terminate()
                     }
                 }
@@ -195,7 +198,7 @@ PopupBase {
     }
 
     function closingPop() {
-        console.log("ClosingPop triggered")
+        //console.log("ClosingPop triggered")
         duration = 0
         incomingCall.hide()
     }

@@ -74,11 +74,11 @@ Column {
     onVisibleChanged: {
         if (visible) {
             callingOut.start();
-            console.log("Start Timer in OutgoingCall");
+            //console.log("Start Timer in OutgoingCall");
         } else {
             keypadVisible = false;
             callingOut.stop();
-            console.log("Stop Timer in OutgoingCall");
+            //console.log("Stop Timer in OutgoingCall");
             duration = 0;
         }
     }
