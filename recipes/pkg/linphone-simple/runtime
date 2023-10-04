@@ -1,0 +1,45 @@
+<runtime ram="256M" caps="1000" binary="ubuntu-ui-toolkit-launcher">
+
+	<requires>
+		<gui/>
+		<rom label="mesa_gpu_drv.lib.so"/>
+		<rm/>
+		<gpu/>
+		<terminal/>
+	</requires>
+
+	<config>
+		<vfs>
+			<dir name="dev">
+				<log/> <gpu/>
+				<inline name="rtc">2018-01-01 00:01</inline>
+				<terminal/>
+			</dir>
+			<dir name="pipe"> <pipe/> </dir>
+			<tar name="qt5_declarative_qml.tar"/>
+			<tar name="qt5_dejavusans.tar"/>
+			<tar name="qt5_graphicaleffects_qml.tar"/>
+			<tar name="qt5_libqgenode.tar"/>
+			<tar name="qt5_libqjpeg.tar"/>
+			<tar name="qt5_libqsvg.tar"/>
+			<tar name="ubuntu-ui-toolkit_qml.tar"/>
+			<tar name="ubuntu-themes.tar"/>
+			<tar name="linphone-simple_qml.tar"/>
+			<tar name="linphone-simple-linphone-plugin.tar"/>
+			<tar name="linphone-simple-servicecontrol-plugin.tar"/>
+		</vfs>
+		<libc stdout="/dev/log" stderr="/dev/log" pipe="/pipe" rtc="/dev/rtc"/>
+		<arg value="ubuntu-ui-toolkit-launcher"/>
+		<arg value="/linphone-simple/qml/dialer-app.qml"/>
+		<env key="QT_SCALE_FACTOR" value="2"/>
+		<!--<env key="QT_DEBUG_PLUGINS" value="1"/>-->
+	</config>
+
+	<content>
+		<rom label="linphone-simple_qml.tar"/>
+		<rom label="linphone-simple-linphone-plugin.tar"/>
+		<rom label="linphone-simple-servicecontrol-plugin.tar"/>
+		<rom label="liblinphoneplugin.lib.so"/>
+		<rom label="libservicecontrolplugin.lib.so"/>
+	</content>
+</runtime>
