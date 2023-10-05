@@ -1,178 +1,136 @@
 #include <QDebug>
 #include <QSettings>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+
 #include "linphone.h"
 
-static bool out_call = false;
-static bool in_call = false;
-static bool in_call_active = false;
-static bool check_register = false;
-static bool check_calls = false;
 
-static unsigned status_ticks = 0;
+static bool dispatch(int fd, QString const &msg)
+{
+	QByteArray const msg_array = msg.toUtf8();
+
+	ssize_t const n = ::write(fd,
+	                          msg_array.constData(),
+	                          msg_array.size());
+	return n < 0 ? false : true;
+}
 
 
 Linphone::Linphone()
+:
+	_read_fd       { open("/dev/terminal", O_RDONLY | O_NONBLOCK) },
+	_write_fd      { open("/dev/terminal", O_WRONLY | O_NONBLOCK) },
+	_read_notifier { _read_fd, QSocketNotifier::Read, this }
 {
+	connect(&_read_notifier, SIGNAL(activated(int)),
+	        this,            SIGNAL(readStatus()));
 }
 
 
 void Linphone::call(QString address)
 {
 	QStringList args;
-	args << "call " << address;
 
-	if (!out_call)
-		out_call = true;
-	else
-		qDebug() << "call while already calling";
+	args << "call" << address << "\n";
+	QByteArray const cmd_register_array = args.join(" ").toUtf8();
 
-	qDebug() << args;
+	if (!dispatch(_write_fd, args.join(" ")))
+		qDebug() << __func__ << "failed";
 }
 
 
 void Linphone::terminate()
 {
-	QStringList args;
-	args << "terminate";
-
-	if (!out_call && !in_call_active)
-		qDebug() << "terminate while not calling";
-
-	if (out_call)
-		out_call = false;
-
-	if (in_call_active)
-		in_call_active = false;
-
-	qDebug() << args;
+	QString msg { "terminate\n" };
+	if (!dispatch(_write_fd, msg))
+		qDebug() << __func__ << "failed";
 }
 
 
 void Linphone::answer()
 {
-	QStringList args;
-	args << "answer";
-
-	if (in_call)
-		in_call = false;
-
-	if (!in_call_active)
-		in_call_active = true;
-
-	qDebug() << args;
+	QString msg { "answer\n" };
+	if (!dispatch(_write_fd, msg))
+		qDebug() << __func__ << "failed";
 }
 
 
 void Linphone::mute()
 {
-	QStringList args;
-	args << "mute";
-
-	qDebug() << args;
+	QString msg { "mute\n" };
+	if (!dispatch(_write_fd, msg))
+		qDebug() << __func__ << "failed";
 }
 
 
 void Linphone::unmute()
 {
-	QStringList args;
-	args << "unmute";
-
-	qDebug() << args;
+	QString msg { "unmute\n" };
+	if (!dispatch(_write_fd, msg))
+		qDebug() << __func__ << "failed";
 }
 
 
 void Linphone::registerSIP(QString user, QString domain, QString password)
 {
-	QStringList args;
-	QString userUser;
-	QString domainHost;
-	QString passwordPassword;
-	//address = "sip:" + user + "@" + domain;
-	//
-	userUser = " --username " + user;
-	domainHost = " --host " + domain;
-	passwordPassword = " --password " + password;
-
-	args << "register" << "--username" << user << "--host" << domain << "--password" << password;
-
-	qDebug() << args;
-
-	status("register");
+	qDebug() << __func__ << ":" << __LINE__;
 }
 
 
 void Linphone::status(QString whatToCheck)
 {
-	QStringList args;
-	args << "status" << whatToCheck;
+	bool const check_register = whatToCheck == "register";
 
-	bool const registered = whatToCheck == "register";
-	if (registered && !check_register)
-		check_register = true;
-
-	qDebug() << "LINPHONECSH: status on " << whatToCheck;
-
-	if (++status_ticks >= 20) {
-		if (!in_call)
-			in_call = true;
-		check_calls = true;
-		status_ticks = 0;
+	if (check_register) {
+		QString msg { "status register\n" };
+		if (!dispatch(_write_fd, msg))
+			qDebug() << __func__ << "failed";
 	}
-
-	emit readStatus();
 }
 
 
 QString Linphone::readStatusOutput()
 {
-	// check first to inject incoming calls
-	if (check_calls) {
-		check_calls = false;
-		bool const active = out_call || in_call_active;
+	static char buffer[8192];
+	memset(buffer, 0, sizeof(buffer));
 
-		QString result;
-		if (active || in_call) {
-			if (active)  result += "StreamsRunning\n";
-			if (in_call) result += "sip:fnord@10.0.0.8  IncomingReceived";
-		} else
-			result = "No active calls";
-
-		qDebug() << __func__ << ":" << __LINE__ << " check_calls" << result;
-		return result;
+	// XXX we read the dispatched msg
+	ssize_t const n = read(_read_fd, buffer, sizeof(buffer)-1);
+	if (n < 0) {
+		if (errno != EAGAIN)
+			qDebug() << __func__ << "errno:" << errno;
+		return QString();
 	}
 
-	if (check_register) {
-		qDebug() << __func__ << ":" << __LINE__ << " check_register";
+	buffer[n] = 0;
 
-		check_register = false;
-		return QString("registered, identity=sip:pinephone@10.0.0.8 duration=600");
-	}
-
-	qDebug() << __func__ << ":" << __LINE__ << " called";
-	return QString();
+	QString result(buffer);
+	qDebug() << __func__ << "result: '" << result << "'";
+	return result;
 }
 
 
 void Linphone::command(QStringList userCommand)
 {
-	QStringList args;
-	args << userCommand;
-
 	bool generic = false;
-	bool calls   = false;
 	if (userCommand.size() > 0)
 		generic = userCommand.at(0) == "generic";
 
+	bool calls   = false;
 	if (userCommand.size() > 1)
 		calls = userCommand.at(1) == "calls";
 
-	if (generic && calls && !check_calls)
-		check_calls = true;
+	if (generic && calls) {
 
-	qDebug() << "LINPHONECSH: command " << userCommand;
-
-	emit readStatus();
+		QString msg { "calls\n" };
+		if (!dispatch(_write_fd, msg))
+			qDebug() << __func__ << "failed";
+	}
 }
 
 
