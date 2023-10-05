@@ -2,6 +2,7 @@
 #define LINPHONE_H
 
 #include <QObject>
+#include <QSocketNotifier>
 
 class Linphone: public QObject {
 	Q_OBJECT
@@ -23,19 +24,19 @@ class Linphone: public QObject {
 		Q_INVOKABLE void disableSpeaker();
 		Q_INVOKABLE void displayOn();
 
-Q_SIGNALS:
+	Q_SIGNALS:
 		void readStatus();
 
-		public Q_SLOTS:
-			// void linphoneProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
-			QString readStatusOutput();
+	public Q_SLOTS:
+		QString readStatusOutput();
 
 	private:
-			//TODO don't hardcode these
-			QString m_libPath = "/opt/click.ubuntu.com/linphone.cibersheep/current/linphone/lib/arm-linux-gnueabihf";
-			QString m_linphonecsh = "/opt/click.ubuntu.com/linphone.cibersheep/current/linphone/bin/linphonecsh";
-			QString m_tmpdir = "/home/phablet/.cache/linphone-tmp/";
-			QString m_configFile = "/home/phablet/.linphonerc";
+
+		QString m_configFile = "/home/phablet/.linphonerc";
+
+		int             _write_fd;
+		int             _read_fd;
+		QSocketNotifier _read_notifier;
 };
 
 #endif

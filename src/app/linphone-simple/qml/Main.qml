@@ -248,7 +248,7 @@ Page {
 
             //Registered?
             if (statusTextReceived.indexOf("registered,") !== -1) {
-                console.log("onReadStatus: Account registered");
+                //console.log("onReadStatus: Account registered");
                 //Slice at indexOf("identity=sip:") + 13, intead of ":" to prevent issue 29
                 //https://gitlab.com/ubports-linphone/linphone-simple/issues/29
                 activeAccount.account = statusTextReceived.slice(statusTextReceived.indexOf("identity=sip:") + 13,
@@ -262,7 +262,7 @@ Page {
             }
 
             //Check if we are reciving an incoming call but we are not already in one
-            if (statusTextReceived.indexOf("IncomingReceived") !== -1) {
+            if (statusTextReceived.indexOf("incoming call") !== -1) {
                 console.log("onReadStatus: IncomingReceived");
                 if (!incomingCall) {
                     console.log("onReadStatus: on IncomingReceived and !incomingCall");
@@ -272,7 +272,7 @@ Page {
                     showIncomingCall(caller);
                 } else console.log("We are receiving a call but we are already in one");
 
-            } else console.log("onReadStatus: not IncomingReceived");
+            } //else console.log("onReadStatus: not IncomingReceived");
 
             if (statusTextReceived.indexOf("OutgoingRinging") !== -1 && !incomingCall) {
                 console.log("onReadStatus: OutgoingRinging");
@@ -356,7 +356,8 @@ Page {
 
             // TODO check if the user provided a non-standard port
             //Replace 'sip:' 'http(s):' '/' ':number'
-            Linphone.call("sip:" + sipNumber.replace(/sip\:|\:(\d+)|https\:|http\:|\//gi,"") + ":5060")
+            /* Linphone.call("sip:" + sipNumber.replace(/sip\:|\:(\d+)|https\:|http\:|\//gi,"") + ":5060") */
+            Linphone.call("sip:" + sipNumber + "@10.0.0.8" + ":5060")
             return sipNumber;
 
         } else {
@@ -377,6 +378,7 @@ Page {
 
     Timer {
         id: checkStatus
+        interval: 5000
         repeat: true
 
         onTriggered: {
