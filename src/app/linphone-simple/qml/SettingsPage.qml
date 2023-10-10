@@ -54,6 +54,7 @@ Page {
                     }
                 }
 
+                /*
                 Button {
                     visible: emptyCredentials
                     text: i18n.tr("Create")
@@ -61,6 +62,7 @@ Page {
                         pageStackNormalMode.push(Qt.createComponent("WebviewPage.qml"))
                     }
                 }
+                */
             }
 
             ListItemLayout {

@@ -35,9 +35,7 @@ Linphone::Linphone()
 void Linphone::call(QString address)
 {
 	QStringList args;
-
 	args << "call" << address << "\n";
-	QByteArray const cmd_register_array = args.join(" ").toUtf8();
 
 	if (!dispatch(_write_fd, args.join(" ")))
 		qDebug() << __func__ << "failed";
@@ -78,7 +76,13 @@ void Linphone::unmute()
 
 void Linphone::registerSIP(QString user, QString domain, QString password)
 {
-	qDebug() << __func__ << ":" << __LINE__;
+	QString identity = "sip:" + user + "@" + domain;
+
+	QStringList args;
+	args << "register" << identity << domain << password << "\n";
+
+	if (!dispatch(_write_fd, args.join(" ")))
+		qDebug() << __func__ << "failed";
 }
 
 
@@ -131,6 +135,14 @@ void Linphone::command(QStringList userCommand)
 		if (!dispatch(_write_fd, msg))
 			qDebug() << __func__ << "failed";
 	}
+
+	bool unregister = false;
+	if (userCommand.size() > 0)
+		unregister = userCommand.at(0) == "unregister";
+
+	if (unregister)
+		if (!dispatch(_write_fd, "unregister\n"))
+			qDebug() << __func__ << "failed";
 }
 
 

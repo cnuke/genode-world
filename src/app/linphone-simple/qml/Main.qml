@@ -357,8 +357,7 @@ Page {
             // TODO check if the user provided a non-standard port
             //Replace 'sip:' 'http(s):' '/' ':number'
             /* Linphone.call("sip:" + sipNumber.replace(/sip\:|\:(\d+)|https\:|http\:|\//gi,"") + ":5060") */
-            Linphone.call("sip:" + sipNumber + "@10.0.0.8" + ":5060")
-            return sipNumber;
+            Linphone.call(sipNumber);
 
         } else {
             // !onCall
