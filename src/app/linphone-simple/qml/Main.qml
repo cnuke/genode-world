@@ -262,7 +262,7 @@ Page {
             }
 
             //Check if we are reciving an incoming call but we are not already in one
-            if (statusTextReceived.indexOf("incoming call") !== -1) {
+            if (statusTextReceived.indexOf("incoming call") !== -1 || statusTextReceived.indexOf("IncomingReceived") !== -1) {
                 console.log("onReadStatus: IncomingReceived");
                 if (!incomingCall) {
                     console.log("onReadStatus: on IncomingReceived and !incomingCall");
