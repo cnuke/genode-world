@@ -20,7 +20,6 @@ Page {
             if (generalSettings.firstRun) {
                 generalSettings.firstRun = false;
             } else {
-		console.log("---------------------- WelcomePage.qml pop");
                 pageStackNormalMode.pop()
             }
         }
@@ -74,7 +73,6 @@ Page {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: i18n.tr("Log in")
                 onClicked: {
-		console.log("---------------------- WelcomePage.qml push LinphoneAccount.qml");
                     pageStackNormalMode.push(Qt.createComponent("LinphoneAccount.qml"));
                 }
             }
@@ -90,7 +88,6 @@ Page {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: i18n.tr("Sign up")
                 onClicked: {
-		console.log("---------------------- WelcomePage.qml push WebviewPage.qml");
                     pageStackNormalMode.push(Qt.createComponent("WebviewPage.qml"))
                 }
             }
