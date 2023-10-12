@@ -189,7 +189,6 @@ PopupBase {
             //TODO: Do a more elegant way of detect the status report onReadStatus. A signal?
             //console.log("Timer: " + duration)
             if (!mainPage.incomingCall) {
-		console.log("----------------- closingPop!!!!!")
                 closingPop()
             }
         }

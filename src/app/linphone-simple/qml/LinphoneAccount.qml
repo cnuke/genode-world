@@ -143,7 +143,6 @@ Page {
                             Linphone.registerSIP(userName.text, domain.text, password.text)
                             accountInfo.lastDomain = domain.text
                             accountInfo.lastUsername = userName.text
-			console.log("---------------------- LinphoneAccount.qml pop");
                             pageStackNormalMode.pop()
                         }
                     }

@@ -17,7 +17,6 @@ PageHeader {
             shortcut: "Ctrl+I"
             text: i18n.tr("Info")
             onTriggered: {
-		console.log("---------------------- SettingsHeader.qml push AboutPage.qml");
                 pageStackNormalMode.push(Qt.createComponent("../AboutPage.qml"));
             }
         }

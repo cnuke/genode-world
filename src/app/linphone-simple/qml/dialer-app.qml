@@ -111,7 +111,6 @@ MainView {
 
     Component.onCompleted: {
         i18n.domain = "linphone"
-			console.log("---------------------- dialer-app.qml push Main.qml");
         pageStackNormalMode.push(Qt.createComponent("Main.qml"))
 
         // when running in windowed mode, do not allow resizing
@@ -119,7 +118,6 @@ MainView {
         //view.minimumHeight = units.gu(71)
 
         /* if (generalSettings.firstRun) { */
-			/* console.log("---------------------- dialer-app.qml push WelcomePage.qml"); */
         /*     pageStackNormalMode.push(Qt.createComponent("WelcomePage.qml")); */
         /* } */
     }
