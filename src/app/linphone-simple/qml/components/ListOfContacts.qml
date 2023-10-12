@@ -57,9 +57,9 @@ Column {
 
                 onClicked: {
                     mainCol.visible = !mainCol.visible
-                    outgoingCallComponent.showId = name.split("@")[0]
-                    outgoingCallComponent.showDomain = name.split("@")[1]
-                    Linphone.call("sip:" + name + ":5060")
+                    outgoingCallComponent.showId = sip_addr.split("@")[0]
+                    outgoingCallComponent.showDomain = sip_addr.split("@")[1]
+                    Linphone.call("sip:" + sip_addr + ":5060")
                     onCallFav = true
                     onCall = true
 
@@ -70,13 +70,13 @@ Column {
 
                 ListItemLayout {
                     id:layout
-                    title.text: name.split("@")[0]
-                    title.color: theme.name === "Ubuntu.Components.Themes.SuruDark"
+                    title.text: name //sip_addr.split("@")[0]
+                    title.color: theme.sip_addr === "Ubuntu.Components.Themes.SuruDark"
                         ? Theme.palette.normal.baseText
                         : darkColor
 
                     //subtitle.text: i18n.tr("")
-                    summary.text: name
+                    summary.text: sip_addr
 
                     width: parent.width
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -105,6 +105,25 @@ Column {
 
         function initialize() {
             contactsModel.clear();
+
+            contactsModel.append({
+               name: "PinePhone",
+               sip_addr: "xxxxxxxxxxxxxxxxx@sip.linphone.org",
+               id: 1
+            });
+
+            contactsModel.append({
+               name: "Charlie Root",
+               sip_addr: "yyyyyyyyyyyyyyy@sip.linphone.org",
+               id: 2
+            });
+
+            contactsModel.append({
+               name: "Foo Bar",
+               sip_addr: "foo@bar.tld",
+               id: 3
+            });
+/*
             var contacts = FavContactsDB.getLatestContacts()
 
             //Newer recent contacts on top
@@ -116,6 +135,7 @@ Column {
                     });
                 }
             }
+*/
         }
     }
 

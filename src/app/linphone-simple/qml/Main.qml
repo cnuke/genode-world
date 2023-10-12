@@ -132,9 +132,11 @@ Page {
             anchors.topMargin: activeAccount.height + units.gu(2)
             spacing: units.gu(2.5)
 
+            /*
             FavoriteContacts {
                 id: favoriteContacts
             }
+            */
 
             Divider {
             }
