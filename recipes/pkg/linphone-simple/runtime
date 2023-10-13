@@ -24,7 +24,6 @@
 			<tar name="qt5_libqsvg.tar"/>
 			<tar name="ubuntu-ui-toolkit_qml.tar"/>
 			<tar name="ubuntu-themes.tar"/>
-			<tar name="ubuntu_ui_toolkit_gallery.tar"/>
 			<tar name="linphone-simple_qml.tar"/>
 			<tar name="linphone-simple-linphone-plugin.tar"/>
 			<tar name="linphone-simple-servicecontrol-plugin.tar"/>
