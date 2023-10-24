@@ -106,6 +106,7 @@ Column {
         function initialize() {
             contactsModel.clear();
 
+/*
             contactsModel.append({
                name: "PinePhone",
                sip_addr: "xxxxxxxxxxxxxxxxx@sip.linphone.org",
@@ -123,7 +124,7 @@ Column {
                sip_addr: "foo@bar.tld",
                id: 3
             });
-/*
+*/
             var contacts = FavContactsDB.getLatestContacts()
 
             //Newer recent contacts on top
@@ -131,11 +132,11 @@ Column {
                 if (contacts.rows.item(i)) {
                     contactsModel.append({
                         name: contacts.rows.item(i).sipaddress,
+                        sip_addr: contacts.rows.item(i).sipaddress,
                         id: contacts.rows.item(i).identifier
                     });
                 }
             }
-*/
         }
     }
 
