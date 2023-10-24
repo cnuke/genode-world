@@ -23,8 +23,8 @@ static bool dispatch(int fd, QString const &msg)
 
 Linphone::Linphone()
 :
-	_read_fd       { open("/dev/terminal", O_RDONLY | O_NONBLOCK) },
 	_write_fd      { open("/dev/terminal", O_WRONLY | O_NONBLOCK) },
+	_read_fd       { open("/dev/terminal", O_RDONLY | O_NONBLOCK) },
 	_read_notifier { _read_fd, QSocketNotifier::Read, this }
 {
 	connect(&_read_notifier, SIGNAL(activated(int)),
@@ -78,8 +78,10 @@ void Linphone::registerSIP(QString user, QString domain, QString password)
 {
 	QString identity = "sip:" + user + "@" + domain;
 
+	QString transport = domain + ";transport=tls";
+
 	QStringList args;
-	args << "register" << identity << domain << password << "\n";
+	args << "register" << identity << transport << password << "\n";
 
 	if (!dispatch(_write_fd, args.join(" ")))
 		qDebug() << __func__ << "failed";
@@ -141,7 +143,7 @@ void Linphone::command(QStringList userCommand)
 		unregister = userCommand.at(0) == "unregister";
 
 	if (unregister)
-		if (!dispatch(_write_fd, "unregister\n"))
+		if (!dispatch(_write_fd, "unregister\nproxy remove 0\n"))
 			qDebug() << __func__ << "failed";
 }
 
