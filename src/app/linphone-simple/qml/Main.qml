@@ -44,6 +44,7 @@ Page {
     property bool answered: false
     property bool speakerEnabled: true
     property bool keypadVisible: false
+    property bool registered: false
     property var bottomEdge: null
     property int iconRotation
 
@@ -256,9 +257,12 @@ Page {
 
                 //We should check that we are not in another stdout result
 
+                registered = true;
+
             } else if (statusTextReceived.indexOf("registered=") !== -1) {
                 console.log("onReadStatus: Account offline");
                 activeAccount.account = i18n.tr("offline");
+                registered = false;
             }
 
             //Check if we are reciving an incoming call but we are not already in one
