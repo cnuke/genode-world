@@ -4,9 +4,6 @@ LP_QML_TAR         := $(BUILD_BASE_DIR)/bin/linphone-simple_qml.tar
 LP_QML_ARCHIVE_DIR := linphone-simple
 
 $(TARGET): $(LP_QML_TAR)
-	$(VERBOSE)touch $(BUILD_BASE_DIR)/bin/$(TARGET)
-	$(VERBOSE)touch $(BUILD_BASE_DIR)/bin/linphone.pro.qmake_target
-	$(VERBOSE)touch $(BUILD_BASE_DIR)/bin/servicecontrol.pro.qmake_target
 
 remove_stale:
 	$(VERBOSE)rm $(LP_QML_TAR) || true
