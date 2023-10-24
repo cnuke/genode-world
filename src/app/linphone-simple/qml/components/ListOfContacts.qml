@@ -107,21 +107,15 @@ Column {
             contactsModel.clear();
 
             contactsModel.append({
-               name: "PinePhone",
-               sip_addr: "xxxxxxxxxxxxxxxxx@sip.linphone.org",
+               name: "Genode Josef (Android)",
+               sip_addr: "genode-jws@sip.linphone.org",
                id: 1
             });
 
             contactsModel.append({
-               name: "Charlie Root",
-               sip_addr: "yyyyyyyyyyyyyyy@sip.linphone.org",
+               name: "Genode Josef (PinePhone)",
+               sip_addr: "genode-jws-pinephone@sip.linphone.org",
                id: 2
-            });
-
-            contactsModel.append({
-               name: "Foo Bar",
-               sip_addr: "foo@bar.tld",
-               id: 3
             });
 /*
             var contacts = FavContactsDB.getLatestContacts()
