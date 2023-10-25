@@ -22,6 +22,7 @@
 #include <input_session/connection.h>
 #include <timer_session/connection.h>
 #include <util/reconstructible.h>
+#include <libc/component.h>
 
 /* library includes */
 #include <lvgl.h>
@@ -196,6 +197,16 @@ struct Platform
 	void update_input()
 	{
 		_input.for_each_event([&] (Input::Event const &curr) {
+
+			curr.handle_touch([&] (Input::Touch_id id, float x, float y) {
+				_mouse_event.x = (int)x;
+				_mouse_event.y = (int)y;
+				_mouse_event.left_pressed = true;
+			});
+
+			curr.handle_touch_release([&] (Input::Touch_id id) {
+				_mouse_event.left_pressed = false;
+			});
 
 			curr.handle_absolute_motion([&] (int x, int y) {
 				_mouse_event.x = x;
@@ -523,8 +534,10 @@ void Lvgl::init(Genode::Env &env, Lvgl::Config config)
 
 void Lvgl::tick(unsigned ms)
 {
-	lv_tick_inc(ms);
-	lv_task_handler();
+	Libc::with_libc([&] {
+		lv_tick_inc(ms);
+		lv_task_handler();
+	});
 }
 
 
