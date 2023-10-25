@@ -31,8 +31,8 @@ struct Main
 	Genode::Env &_env;
 
 	Lvgl::Config config { .title              = "LVGL Demo Widgets",
-	                      .initial_width      = 800,
-	                      .initial_height     = 600,
+	                      .initial_width      = 720,
+	                      .initial_height     = 1440,
 	                      .allow_resize       = true,
 	                      .use_refresh_sync   = true,
 	                      .use_keyboard       = true,
