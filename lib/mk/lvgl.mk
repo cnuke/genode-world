@@ -103,6 +103,6 @@ LIBS += libc
 vpath %.c $(LIBLVGL_SRC_DIR)/src
 vpath %.cc $(REP_DIR)/src/lib/lvgl
 
-SHARED_LIB := yes
+#SHARED_LIB := yes
 
 CC_CXX_WARN_STRICT :=
