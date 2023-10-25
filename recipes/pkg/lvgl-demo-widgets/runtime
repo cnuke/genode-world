@@ -1,0 +1,17 @@
+<runtime ram="8M" caps="100" binary="test-lvgl-widgets">
+
+	<requires> <gui/> <timer/> </requires>
+
+	<config>
+		<vfs> <dir name="dev"> <log/> </dir> </vfs>
+		<libc stdout="/dev/log"/>
+	</config>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="libc.lib.so"/>
+		<rom label="test-lvgl-widgets"/>
+		<rom label="vfs.lib.so"/>
+	</content>
+
+</runtime>
