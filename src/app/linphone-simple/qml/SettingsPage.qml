@@ -77,6 +77,7 @@ Page {
                 subtitle.text: accountInfo.lastUsername + "@" + accountInfo.lastDomain
             }
 
+            /*
             ListItemLayout {
                 title.text: i18n.tr("Stop Linphone when close")
                 title.color: theme.name === "Ubuntu.Components.Themes.SuruDark"
@@ -130,6 +131,7 @@ Page {
                     }
                 }
             }
+            */
         }
     }
 }
