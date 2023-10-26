@@ -8,7 +8,8 @@ Row {
     width: showKeyPad.width + switchAudioOutput.width + units.gu(2) 
     anchors.horizontalCenter: parent.horizontalCenter
     spacing: units.gu(2)
-    
+
+    /*
     ActionRowButton {
         id: showKeyPad
         buttonIcon: "keypad"
@@ -23,4 +24,5 @@ Row {
             speakerEnabled = !speakerEnabled;
         }
     }
+    */
 }
