@@ -129,6 +129,9 @@ PopupBase {
 
                         //Answer button should disappear when answer :)
                         answerCall.visible = false
+
+                        addAddressToContacts(showId + "@" + showDomain)
+                        updateContactList()
                     }
                 }
             }

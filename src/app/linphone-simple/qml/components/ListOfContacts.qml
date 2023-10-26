@@ -30,6 +30,7 @@ Column {
             divider.visible: false
             clip: true
             highlightColor: "transparent"
+
             leadingActions: ListItemActions {
                 actions: Action {
                     iconName: "delete"
@@ -43,9 +44,22 @@ Column {
 
             trailingActions: ListItemActions {
                 actions: Action {
-                        //iconName: "contact-new"
+                        iconName: "contact-new"
                         text: i18n.tr("Add")
+
                         onTriggered: {
+                            for (var i = 0; i < favoriteContacts.children.length; i++) {
+                                if (favoriteContacts.children[i].emptyFavContact) {
+
+                                    var id = favoriteContacts.children[i].identifier
+                                    var name = sip_addr.split("@")[0]
+                                    FavContactsDB.storeFavContact(Date(), id, name, sip_addr, "icon")
+
+                                    favoriteContacts.children[i].updateFavContact()
+
+                                    break
+                                }
+                            }
                         }
                     }
             }

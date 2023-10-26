@@ -329,7 +329,12 @@ Page {
         PopupUtils.open(incomingCallComponent);
     }
 
-    function addAddressToFavorite(sipAdress) {
+    function addAddressToFavorite(id, sipAdress) {
+        var contactInfo = sipAdress.split("@")
+        FavContactsDB.storeContact(Date(), id, contactInfo[0], sipAdress, "icon")
+    }
+
+    function addAddressToContacts(sipAdress) {
         var contactInfo = sipAdress.split("@")
         FavContactsDB.storeContact(Date(), contactInfo[0], sipAdress, "icon")
     }
@@ -354,7 +359,7 @@ Page {
                 outgoingCallComponent.showDomain = sipNumber.split("@")[1]
             }
 
-            addAddressToFavorite(sipNumber)
+            addAddressToContacts(sipNumber)
             updateContactList()
 
             Linphone.disableSpeaker();
