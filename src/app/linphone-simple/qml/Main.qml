@@ -271,8 +271,12 @@ Page {
                 if (!incomingCall) {
                     console.log("onReadStatus: on IncomingReceived and !incomingCall");
                     incomingCall = true;
+
+                    // extract '... <sip:foo@domain.tld>, ...' -> foo, domain.tld
                     var caller = statusTextReceived.slice(statusTextReceived.indexOf("sip:") + 4);
                     caller = caller.slice(0,caller.indexOf(" "));
+                    caller = caller.replace(/\>,$/, "").split("@");
+
                     showIncomingCall(caller);
                 } else console.log("We are receiving a call but we are already in one");
 
@@ -322,8 +326,6 @@ Page {
     function showIncomingCall(callerInfo) {
         showId = callerInfo[0] || i18n.tr("Unkown")
         showDomain = callerInfo[1] || ""
-        console.log("Receive: " + callerInfo)
-        console.log("ID name: " + showId)
         PopupUtils.open(incomingCallComponent);
     }
 
@@ -352,8 +354,8 @@ Page {
                 outgoingCallComponent.showDomain = sipNumber.split("@")[1]
             }
 
-            //addAddressToFavorite(sipNumber)
-            //updateContactList()
+            addAddressToFavorite(sipNumber)
+            updateContactList()
 
             Linphone.disableSpeaker();
             speakerEnabled = false;
