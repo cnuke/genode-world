@@ -59,7 +59,7 @@ Column {
                     mainCol.visible = !mainCol.visible
                     outgoingCallComponent.showId = sip_addr.split("@")[0]
                     outgoingCallComponent.showDomain = sip_addr.split("@")[1]
-                    Linphone.call("sip:" + sip_addr + ":5060")
+                    Linphone.call(sip_addr)
                     onCallFav = true
                     onCall = true
 
