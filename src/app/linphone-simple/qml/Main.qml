@@ -57,6 +57,8 @@ Page {
     property string pendingNumberToDial: ""
     property bool accountReady: false
 
+    property string authtoken: ""
+
     Settings {
         id: theming
         category: "Theming Settings"
@@ -242,6 +244,8 @@ Page {
                 answered = false;
                 onCall = false;
 
+                authtoken = "";
+
                 //Finish current call, so enable the speaker
                 Linphone.enableSpeaker();
                 speakerEnabled = true;
@@ -291,6 +295,21 @@ Page {
                 console.log("onReadStatus: StreamsRunning");
                 answered = true;
             }
+
+            // extract token from 'Call ID is fully encrypted and auth token is aabb...'
+            if (statusTextReceived.indexOf("auth token is") !== -1) {
+               authtoken = statusTextReceived.slice(statusTextReceived.indexOf("token is ") + 9);
+
+               PopupUtils.open(sasInfoPopupComponent);
+            }
+        }
+    }
+
+    Component {
+        id: sasInfoPopupComponent
+
+        SasInfoPopup {
+            anchors.fill: parent
         }
     }
 
