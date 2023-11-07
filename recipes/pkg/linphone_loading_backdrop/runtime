@@ -1,0 +1,10 @@
+<runtime ram="16M" caps="100" binary="backdrop" config="backdrop.config">
+
+	<requires> <gui/> </requires>
+
+	<content>
+		<rom label="backdrop.config"/>
+		<rom label="linphone_logo.png"/>
+	</content>
+
+</runtime>
