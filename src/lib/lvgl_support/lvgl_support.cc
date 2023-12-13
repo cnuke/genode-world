@@ -178,6 +178,30 @@ struct Platform
 		_gui.execute();
 	}
 
+	void *swap(unsigned int w, unsigned int h)
+	{
+		using Command = Gui::Session::Command;
+
+		static int swap = 0;
+
+		Gui::Point const point { 0, int(swap * h) };
+		Gui::Area  const area  { w, h };
+
+		void *next_fb = ((char*)_fb->base()) + !swap * (_fb->size() / 2);
+
+		swap ^= 1;
+
+		_gui.enqueue<Command::Geometry>(_view, Gui::Rect(Gui::Point(0, 0),
+		                                                 area));
+		_gui.enqueue<Command::Offset>(_view, point);
+		_gui.execute();
+
+		_gui.framebuffer()->refresh(point.x(), -point.y(),
+		                            area.w(), area.h());
+
+		return next_fb;
+	}
+
 	void refresh(int x, int y, int w, int h)
 	{
 		_gui.framebuffer()->refresh(x, y, w, h);
@@ -226,6 +250,7 @@ struct Platform
 			});
 
 			curr.handle_touch_release([&] (Input::Touch_id id) {
+
 				if (id.value != 0)
 					return;
 
@@ -316,11 +341,18 @@ static void genode_display_flush_wait(lv_disp_drv_t *disp_drv)
 
 static void genode_disp_flush(lv_disp_drv_t       *disp_drv,
                               lv_area_t     const *area,
-                              lv_color_t          *)
+                              lv_color_t          *color_p)
 {
 	Platform &platform = *static_cast<Platform*>(disp_drv->user_data);
 
-	platform.refresh(area->x1, area->y1, area->x2, area->y2);
+	lv_disp_t *disp = lv_disp_get_default();
+	lv_coord_t const vres = lv_disp_get_ver_res(disp);
+	lv_coord_t const hres = lv_disp_get_hor_res(disp);
+
+	void *next_fb = platform.swap(hres, vres);
+
+	// XXX direct mode w/o full refresh: disp->inv_areas, disp->inv_area_joined, disp->inv_p
+
 	lv_disp_flush_ready(disp_drv);
 
 	// genode_display_flush_wait(disp_drv);
@@ -380,8 +412,19 @@ class Lvgl_support
 		void _setup_draw_buffer(lv_disp_draw_buf_t &buffer)
 		{
 			_platform.framebuffer([&] (void *base, size_t size) {
-				lv_disp_draw_buf_init(&buffer, base, NULL, size);
+				lv_disp_draw_buf_init(&buffer, base, (char*)base + (size / 2), size / 2);
+				// lv_disp_draw_buf_init(&buffer, base, NULL, size / 2);
 			});
+		}
+
+		lv_coord_t _get_hor_res(Framebuffer::Mode mode)
+		{
+			return mode.area.w();
+		}
+
+		lv_coord_t _get_ver_res(Framebuffer::Mode mode)
+		{
+			return mode.area.h() / 2;
 		}
 
 		lv_indev_drv_t _keyboard_drv   { };
@@ -432,8 +475,8 @@ class Lvgl_support
 
 			_platform.update_mode(req_mode);
 
-			_disp_drv.hor_res = req_mode.area.w();
-			_disp_drv.ver_res = req_mode.area.h();
+			_disp_drv.hor_res = _get_hor_res(req_mode);
+			_disp_drv.ver_res = _get_ver_res(req_mode);
 
 			_setup_draw_buffer(_disp_buf1);
 
@@ -489,6 +532,8 @@ class Lvgl_support
 
 			}
 
+			mode.area = { mode.area.w(), mode.area.h() * 2 };
+
 			return mode;
 		}
 
@@ -513,10 +558,11 @@ class Lvgl_support
 			lv_disp_drv_init(&_disp_drv);
 			_disp_drv.draw_buf = &_disp_buf1;
 			_disp_drv.flush_cb = genode_disp_flush;
-			_disp_drv.wait_cb = genode_display_flush_wait;
-			_disp_drv.hor_res = _mode.area.w();
-			_disp_drv.ver_res = _mode.area.h();
+			// _disp_drv.wait_cb = genode_display_flush_wait;
+			_disp_drv.hor_res = _get_hor_res(_mode);
+			_disp_drv.ver_res = _get_ver_res(_mode);
 			_disp_drv.direct_mode = true;
+			_disp_drv.full_refresh = true;
 			_disp_drv.user_data = &_platform;
 
 			_disp = lv_disp_drv_register(&_disp_drv);
