@@ -208,6 +208,25 @@ struct Platform
 	{
 		_input.for_each_event([&] (Input::Event const &curr) {
 
+			/*
+			 * Treat touch as mouse for now, only handling the first finger.
+			 */
+			curr.handle_touch([&] (Input::Touch_id id, float x, float y) {
+				if (id.value != 0)
+					return;
+
+				_mouse_event.x = (int)x;
+				_mouse_event.y = (int)y;
+				_mouse_event.left_pressed = true;
+			});
+
+			curr.handle_touch_release([&] (Input::Touch_id id) {
+				if (id.value != 0)
+					return;
+
+				_mouse_event.left_pressed = false;
+			});
+
 			curr.handle_absolute_motion([&] (int x, int y) {
 				_mouse_event.x = x;
 				_mouse_event.y = y;
