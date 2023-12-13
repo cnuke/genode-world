@@ -189,6 +189,26 @@ struct Platform
 		fn(_fb->base(), _fb->size());
 	}
 
+	bool _sync_pending { false };
+
+	template <typename FN>
+	void wait_for_sync(FN const & fn)
+	{
+		for (;;) {
+			_env.ep().wait_and_dispatch_one_io_signal();
+			if (_sync_pending)
+				break;
+		}
+
+		_sync_pending = false;
+		fn();
+	}
+
+	void sync_pending()
+	{
+		_sync_pending = true;
+	}
+
 	void update_input()
 	{
 		_input.for_each_event([&] (Input::Event const &curr) {
@@ -279,6 +299,21 @@ struct Platform
 };
 
 
+static void genode_display_flush_wait(lv_disp_drv_t *disp_drv)
+{
+
+	Platform &platform = *static_cast<Platform*>(disp_drv->user_data);
+
+	platform.wait_for_sync([&] () {
+		lv_disp_t *disp = lv_disp_get_default();
+		lv_coord_t const vres = lv_disp_get_ver_res(disp);
+		lv_coord_t const hres = lv_disp_get_hor_res(disp);
+
+		platform.refresh(0, 0, hres, vres);
+	});
+}
+
+
 static void genode_disp_flush(lv_disp_drv_t       *disp_drv,
                               lv_area_t     const *area,
                               lv_color_t          *)
@@ -287,6 +322,8 @@ static void genode_disp_flush(lv_disp_drv_t       *disp_drv,
 
 	platform.refresh(area->x1, area->y1, area->x2, area->y2);
 	lv_disp_flush_ready(disp_drv);
+
+	// genode_display_flush_wait(disp_drv);
 }
 
 
@@ -356,6 +393,9 @@ class Lvgl_support
 		Genode::Signal_handler<Lvgl_support> _timer_sigh {
 			_env.ep(), *this, &Lvgl_support::_handle_timer };
 
+		Genode::Io_signal_handler<Lvgl_support> _sync_sigh {
+			_env.ep(), *this, &Lvgl_support::_handle_sync };
+
 		Genode::Signal_handler<Lvgl_support> _mode_sigh {
 			_env.ep(), *this, &Lvgl_support::_handle_mode_change };
 
@@ -377,6 +417,13 @@ class Lvgl_support
 				(*_config.timer_callback)();
 
 			_handle_signals();
+		}
+
+		void _handle_sync()
+		{
+			_platform.sync_pending();
+
+			_sigh.local_submit();
 		}
 
 		void _handle_mode_change()
@@ -409,7 +456,7 @@ class Lvgl_support
 			}
 
 			if (config.use_refresh_sync) {
-				_gui.framebuffer()->sync_sigh(_sigh);
+				_gui.framebuffer()->sync_sigh(_sync_sigh);
 			}
 
 			if (config.allow_resize) {
@@ -466,6 +513,7 @@ class Lvgl_support
 			lv_disp_drv_init(&_disp_drv);
 			_disp_drv.draw_buf = &_disp_buf1;
 			_disp_drv.flush_cb = genode_disp_flush;
+			_disp_drv.wait_cb = genode_display_flush_wait;
 			_disp_drv.hor_res = _mode.area.w();
 			_disp_drv.ver_res = _mode.area.h();
 			_disp_drv.direct_mode = true;
