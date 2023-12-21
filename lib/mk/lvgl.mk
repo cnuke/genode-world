@@ -2,6 +2,8 @@ include $(REP_DIR)/lib/import/import-lvgl.mk
 
 LIBLVGL_SRC_DIR := $(LIBLVGL_PORT_DIR)/src/lib/lvgl
 
+CC_CXX_OPT += -Wno-deprecated-enum-enum-conversion
+
 SRC_CC := glue.cc
 
 SRC_C_core := \

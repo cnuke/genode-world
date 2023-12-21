@@ -50,9 +50,6 @@ struct Main
 };
 
 
-void Lvgl::handle_component() { }
-
-
 void Libc::Component::construct(Libc::Env &env)
 {
 	/* holzhammer */

@@ -1,6 +1,8 @@
 TARGET := test-lvgl-widgets
 LIBS   := base lvgl libc
 
+CC_CXX_OPT += -Wno-deprecated-enum-enum-conversion
+
 LIBLVGL_PORT_DIR := $(call select_from_ports,lvgl)
 LIBLVGL_SRC_DIR  := $(LIBLVGL_PORT_DIR)/src/lib/lvgl
 
