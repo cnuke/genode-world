@@ -1,6 +1,7 @@
 /*
  * \brief   LVGL support library
  * \author  Josef Soentgen
+ * \author  Johannes Schlatow
  * \date    2022-10-19
  */
 
@@ -26,7 +27,6 @@
 
 /* library includes */
 #include <lvgl.h>
-#include <misc/lv_color.h>
 
 namespace Util {
 
@@ -84,11 +84,38 @@ namespace Util {
 } /* namespace Util */
 
 
+struct Attached_framebuffer
+{
+	Genode::Env                &_env;
+	Genode::Attached_dataspace  _fb_ds;
+	size_t                      _size;
+
+	Attached_framebuffer(Genode::Env                & env,
+	                     Framebuffer::Mode            mode,
+	                     Genode::Dataspace_capability ds)
+	: _env(env),
+	  _fb_ds(_env.rm(), ds),
+	  _size(mode.area.w() * mode.area.h() * 4)
+	{ }
+
+	~Attached_framebuffer()
+	{
+		_env.rm().detach(_fb_ds.local_addr<void>());
+	}
+
+	template <typename FN>
+	void with_framebuffer(FN const &fn)
+	{
+		fn(_fb_ds.local_addr<unsigned int>(), _size);
+	}
+};
+
+
 struct Platform
 {
 	Genode::Env &_env;
 
-	Gui::Connection           _gui;
+	Gui::Connection         & _gui;
 	Gui::Session::View_handle _view { _gui.create_view() };
 	Framebuffer::Mode         _mode;
 
@@ -100,7 +127,7 @@ struct Platform
 		bool     pressed;
 	};
 
-	Util::Queue<Key_event, 32> _key_events;
+	Util::Queue<Key_event, 32> _key_events { };
 
 	struct Mouse_event
 	{
@@ -110,25 +137,24 @@ struct Platform
 	};
 	Mouse_event _mouse_event { 0, 0, false };
 
-	Genode::Constructible<Genode::Attached_dataspace> _fb_ds { };
-	uint8_t *_framebuffer { nullptr };
-	size_t _size { 0 };
+	Genode::Constructible<Attached_framebuffer> _fb { };
 
 	Genode::Signal_handler<Platform> _sigh {
 		_env.ep(), *this, &Platform::_handle_mode_change };
 
 	void _handle_mode_change()
 	{
-		/* dummy signal handler to active resizing */
+		/* dummy signal handler to activate resizing */
 	}
 
 	Platform(Genode::Env       &env,
+	         Gui::Connection   &gui,
 	         Framebuffer::Mode  mode,
 	         bool               allow_resize,
 	         char const        *title)
 	:
 		_env { env },
-		_gui { _env, title ? title : "LVGL" },
+		_gui { gui },
 		_mode { mode }
 	{
 		/* register handler early, otherwise resizing seems to has issues */
@@ -137,11 +163,7 @@ struct Platform
 
 		_gui.buffer(_mode, false);
 
-		/* XXX deduplicate */
-		_fb_ds.construct(_env.rm(), _gui.framebuffer()->dataspace());
-		_framebuffer = _fb_ds->local_addr<uint8_t>();
-		size_t const size = mode.area.w() * mode.area.h() * 4;
-		_size = size;
+		_fb.construct(_env, mode, _gui.framebuffer()->dataspace());
 
 		using Command = Gui::Session::Command;
 		using namespace Gui;
@@ -149,24 +171,19 @@ struct Platform
 		_gui.enqueue<Command::Geometry>(_view, Gui::Rect(Gui::Point(0, 0),
 		                                                 _mode.area));
 		_gui.enqueue<Command::To_front>(_view, Gui::Session::View_handle());
-		// _gui.enqueue<Command::Title>(_view, title ? title : "unknown-lvgl-window");
+		_gui.enqueue<Command::Title>(_view, title ? title : "unknown-lvgl-window");
 		_gui.execute();
 	}
 
 	void update_mode(Framebuffer::Mode mode)
 	{
-		if (_fb_ds.constructed())
-			_fb_ds.destruct();
-		_framebuffer = nullptr;
+		if (_fb.constructed())
+			_fb.destruct();
 
 		_gui.buffer(mode, false);
 
-		/* XXX deduplicate */
-		_fb_ds.construct(_env.rm(), _gui.framebuffer()->dataspace());
-		_framebuffer = _fb_ds->local_addr<uint8_t>();
+		_fb.construct(_env, mode, _gui.framebuffer()->dataspace());
 		_mode = mode;
-		size_t const size = mode.area.w() * mode.area.h() * 4;
-		_size = size;
 
 		using Command = Gui::Session::Command;
 		using namespace Gui;
@@ -176,37 +193,20 @@ struct Platform
 		_gui.execute();
 	}
 
-	~Platform()
-	{
-		_env.rm().detach(_framebuffer);
-	}
-
 	void refresh(int x, int y, int w, int h)
 	{
 		_gui.framebuffer()->refresh(x, y, w, h);
 	}
 
-	unsigned int *buffer() const { return (unsigned int*)_framebuffer; }
-
 	template <typename FN>
 	void with_framebuffer(FN const &fn)
 	{
-		fn((unsigned int*)_framebuffer, _size);
+		_fb->with_framebuffer(fn);
 	}
 
 	void update_input()
 	{
 		_input.for_each_event([&] (Input::Event const &curr) {
-
-			curr.handle_touch([&] (Input::Touch_id id, float x, float y) {
-				_mouse_event.x = (int)x;
-				_mouse_event.y = (int)y;
-				_mouse_event.left_pressed = true;
-			});
-
-			curr.handle_touch_release([&] (Input::Touch_id id) {
-				_mouse_event.left_pressed = false;
-			});
 
 			curr.handle_absolute_motion([&] (int x, int y) {
 				_mouse_event.x = x;
@@ -334,186 +334,197 @@ static void genode_mouse_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data
 }
 
 
-struct Lvgl_support
+class Lvgl_support
 {
-	Genode::Env &_env;
-	Genode::Heap _heap { _env.ram(), _env.rm() };
+	private:
+		
+		Genode::Env &_env;
+		Genode::Heap _heap { _env.ram(), _env.rm() };
 
-	Framebuffer::Mode _mode;
-	Platform          _platform;
+		Gui::Connection   _gui;
+		Framebuffer::Mode _mode;
+		Platform          _platform;
 
-	/* lv stuff */
-	lv_disp_drv_t  _disp_drv;
-	lv_disp_t     *_disp;
-    lv_indev_drv_t _mouse_drv;
-	lv_indev_t    *_mouse_indev { nullptr };
-	lv_obj_t      *_mouse_cursor { nullptr };
+		Timer::Connection _timer   { _env };
+		uint64_t          _last_ms { _timer.elapsed_ms() };
 
-	lv_disp_draw_buf_t disp_buf1;
-	lv_color_t *disp_buf1_backing = nullptr;
+		Lvgl::Config _config { };
 
-	Genode::Signal_handler<Lvgl_support> _mode_sigh {
-		_env.ep(), *this, &Lvgl_support::_handle_mode_change };
+		/* lv stuff */
+		lv_disp_drv_t  _disp_drv     { };
+		lv_disp_t     *_disp         { nullptr };
+		lv_indev_drv_t _mouse_drv    { };
+		lv_indev_t    *_mouse_indev  { nullptr };
+		lv_obj_t      *_mouse_cursor { nullptr };
 
-	void _handle_mode_change()
-	{
-		Framebuffer::Mode const req_mode = _platform._gui.mode();
+		lv_disp_draw_buf_t  _disp_buf1         { };
+		lv_color_t         *_disp_buf1_backing { nullptr };
 
-		_platform.update_mode(req_mode);
+		lv_indev_drv_t _keyboard_drv   { };
+		lv_indev_t    *_keyboard_indev { nullptr };
 
-		// XXX disp_buf1 resizing?
-		_disp_drv.hor_res = req_mode.area.w();
-		_disp_drv.ver_res = req_mode.area.h();
+		Genode::Signal_handler<Lvgl_support> _sigh {
+			_env.ep(), *this, &Lvgl_support::_handle_signals };
+		
+		Genode::Signal_handler<Lvgl_support> _timer_sigh {
+			_env.ep(), *this, &Lvgl_support::_handle_timer };
 
-		lv_disp_drv_update(_disp, &_disp_drv);
-		_mode = req_mode;
-	}
+		Genode::Signal_handler<Lvgl_support> _mode_sigh {
+			_env.ep(), *this, &Lvgl_support::_handle_mode_change };
 
-    lv_indev_drv_t _keyboard_drv;
-	lv_indev_t    *_keyboard_indev { nullptr };
+		void _handle_signals()
+		{
+			_platform.update_input();
 
-	Timer::Connection _timer { _env };
+			uint64_t const cur_ms = _timer.elapsed_ms();
+			unsigned const diff   = cur_ms - _last_ms;
+			_last_ms = cur_ms;
 
-	uint64_t _last_ms { _timer.elapsed_ms() };
-
-	Genode::Signal_handler<Lvgl_support> _sigh {
-		_env.ep(), *this, &Lvgl_support::_handle_signals };
-
-	bool _disarm_next { false };
-	void _disarm_signal_handler()
-	{
-		_timer.sigh(Genode::Signal_context_capability());
-		_platform._gui.framebuffer()->sync_sigh(Genode::Signal_context_capability());
-		_platform._input.sigh(Genode::Signal_context_capability());
-		_platform._gui.mode_sigh(Genode::Signal_context_capability());
-	}
-
-	void _handle_signals()
-	{
-		_platform.update_input();
-
-		Lvgl::handle_component();
-
-		uint64_t const cur_ms = _timer.elapsed_ms();
-		unsigned const diff   = cur_ms - _last_ms;
-		_last_ms = cur_ms;
-
-		Lvgl::tick(diff);
-	}
-
-	Lvgl::Config _config { };
-
-	void _resume(Lvgl::Config config)
-	{
-		if (config.use_keyboard || config.use_mouse) {
-			_platform._input.sigh(_sigh);
+			Libc::with_libc([&] () {
+				Lvgl::tick(diff); });
 		}
 
-		if (config.use_periodic_timer) {
-			_timer.sigh(_sigh);
-			_timer.trigger_periodic(config.periodic_ms * 1000);
+		void _handle_timer()
+		{
+			if (_config.timer_callback)
+				(*_config.timer_callback)();
+
+			_handle_signals();
 		}
 
-		if (config.use_refresh_sync) {
-			_platform._gui.framebuffer()->sync_sigh(_sigh);
+		void _handle_mode_change()
+		{
+			Framebuffer::Mode const req_mode = _gui.mode();
+
+			_platform.update_mode(req_mode);
+
+			// XXX _disp_buf1 resizing?
+			_disp_drv.hor_res = req_mode.area.w();
+			_disp_drv.ver_res = req_mode.area.h();
+
+			lv_disp_drv_update(_disp, &_disp_drv);
+			_mode = req_mode;
+
+			if (_config.resize_callback)
+				(*_config.resize_callback)();
 		}
 
-		if (config.allow_resize) {
-			_platform._gui.mode_sigh(_mode_sigh);
-		}
-	}
+		void _resume(Lvgl::Config config)
+		{
+			if (config.use_keyboard || config.use_mouse) {
+				_platform._input.sigh(_sigh);
+			}
 
-	void _suspend(Lvgl::Config config)
-	{
-		if (config.use_keyboard || config.use_mouse) {
-			_platform._input.sigh(_sigh);
-		}
+			if (config.use_periodic_timer) {
+				_timer.sigh(_timer_sigh);
+				_timer.trigger_periodic(config.periodic_ms * 1000);
+			}
 
-		if (config.use_periodic_timer) {
-			_timer.sigh(_sigh);
-			_timer.trigger_periodic(config.periodic_ms);
-		}
+			if (config.use_refresh_sync) {
+				_gui.framebuffer()->sync_sigh(_sigh);
+			}
 
-		if (config.use_refresh_sync) {
-			_platform._gui.framebuffer()->sync_sigh(_sigh);
-		}
-
-		if (config.allow_resize) {
-			_platform._gui.mode_sigh(_mode_sigh);
-		}
-	}
-
-	Lvgl_support(Genode::Env &env, Lvgl::Config config)
-	:
-		_env  { env },
-		_mode { .area = { config.initial_width,
-		                  config.initial_height } },
-		_platform { _env, _mode, config.allow_resize, config.title },
-		_config { config }
-	{
-		disp_buf1_backing = (lv_color_t*)_heap.alloc(config.initial_width * 10);
-
-		lv_init();
-
-		lv_disp_draw_buf_init(&disp_buf1, disp_buf1_backing, NULL,
-		                      config.initial_width * 10);
-
-		lv_disp_drv_init(&_disp_drv);
-		_disp_drv.draw_buf = &disp_buf1;
-		_disp_drv.flush_cb = genode_disp_flush;
-		_disp_drv.hor_res = config.initial_width;
-		_disp_drv.ver_res = config.initial_height;
-		_disp_drv.user_data = &_platform;
-
-		_disp = lv_disp_drv_register(&_disp_drv);
-
-		lv_theme_t * th = lv_theme_default_init(_disp,
-		                                         lv_palette_main(LV_PALETTE_BLUE),
-		                                         lv_palette_main(LV_PALETTE_RED),
-		                                         LV_THEME_DEFAULT_DARK,
-		                                         LV_FONT_DEFAULT);
-		lv_disp_set_theme(_disp, th);
-
-		lv_group_t * g = lv_group_create();
-		lv_group_set_default(g);
-
-		if (_config.use_mouse) {
-			lv_indev_drv_init(&_mouse_drv);
-			_mouse_drv.type = LV_INDEV_TYPE_POINTER;
-			_mouse_drv.read_cb = genode_mouse_read;
-			_mouse_drv.user_data = &_platform;
-			_mouse_indev = lv_indev_drv_register(&_mouse_drv);
-			// lv_indev_set_group(_mouse_indev, g);
-
-			_mouse_cursor = lv_img_create(lv_scr_act());
-			/* do not show mouse cursor */
-			// LV_IMG_DECLARE(mouse_cursor_icon);
-			// lv_img_set_src(_mouse_cursor, &mouse_cursor_icon);
-			lv_indev_set_cursor(_mouse_indev, _mouse_cursor);
+			if (config.allow_resize) {
+				_gui.mode_sigh(_mode_sigh);
+			}
 		}
 
-		if (_config.use_keyboard) {
-			lv_indev_drv_init(&_keyboard_drv);
-			_keyboard_drv.type = LV_INDEV_TYPE_KEYPAD;
-			_keyboard_drv.read_cb = genode_keyboard_read;
-			_keyboard_drv.user_data = &_platform;
+		static Framebuffer::Mode _initial_mode(Gui::Connection & gui,
+		                                       Lvgl::Config & config)
+		{
+			Framebuffer::Mode mode = gui.mode();
 
-			_keyboard_indev = lv_indev_drv_register(&_keyboard_drv);
-			lv_indev_set_group(_keyboard_indev, g);
+			if (config.allow_resize) {
+
+				/* always prefer actual screen size (only if larger) */
+				if (mode.area.w() < config.initial_width)
+					mode.area = { config.initial_width, mode.area.h() };
+
+				if (mode.area.h() < config.initial_height)
+					mode.area = { mode.area.w(), config.initial_height };
+
+			} else {
+
+				/* prefer initial width/height (if != 0) */
+				if (config.initial_width)
+					mode.area = { config.initial_width, mode.area.h() };
+
+				if (config.initial_height)
+					mode.area = { mode.area.w(), config.initial_height };
+
+			}
+
+			return mode;
 		}
 
-		_resume(_config);
-	}
+		/* Noncopyable */
+		Lvgl_support(Lvgl_support const &) = delete;
+		Lvgl_support & operator=(Lvgl_support const &) = delete;
 
-	void resume()
-	{
-		_resume(_config);
-	}
+	public:
 
-	void suspend()
-	{
-		_suspend(_config);
-	}
+		Lvgl_support(Genode::Env &env, Lvgl::Config config)
+		:
+			_env  { env },
+			_gui  { env, config.title ? config.title : "LVGL" },
+			_mode { _initial_mode(_gui, config) },
+			_platform { _env, _gui, _mode, config.allow_resize, config.title },
+			_config { config }
+		{
+			unsigned long num_pixels = _mode.area.w() * 10;
+			_disp_buf1_backing = (lv_color_t*)_heap.alloc(num_pixels * sizeof(lv_color_t));
+
+			lv_init();
+
+			lv_disp_draw_buf_init(&_disp_buf1, _disp_buf1_backing, NULL, num_pixels);
+
+			lv_disp_drv_init(&_disp_drv);
+			_disp_drv.draw_buf = &_disp_buf1;
+			_disp_drv.flush_cb = genode_disp_flush;
+			_disp_drv.hor_res = _mode.area.w();
+			_disp_drv.ver_res = _mode.area.h();
+			_disp_drv.user_data = &_platform;
+
+			_disp = lv_disp_drv_register(&_disp_drv);
+
+			lv_theme_t * th = lv_theme_default_init(_disp,
+			                                         lv_palette_main(LV_PALETTE_BLUE),
+			                                         lv_palette_main(LV_PALETTE_RED),
+			                                         LV_THEME_DEFAULT_DARK,
+			                                         LV_FONT_DEFAULT);
+			lv_disp_set_theme(_disp, th);
+
+			lv_group_t * g = lv_group_create();
+			lv_group_set_default(g);
+
+			if (_config.use_mouse) {
+				lv_indev_drv_init(&_mouse_drv);
+				_mouse_drv.type = LV_INDEV_TYPE_POINTER;
+				_mouse_drv.read_cb = genode_mouse_read;
+				_mouse_drv.user_data = &_platform;
+				_mouse_indev = lv_indev_drv_register(&_mouse_drv);
+				// lv_indev_set_group(_mouse_indev, g);
+
+				_mouse_cursor = lv_img_create(lv_scr_act());
+				/* do not show mouse cursor */
+				// LV_IMG_DECLARE(mouse_cursor_icon);
+				// lv_img_set_src(_mouse_cursor, &mouse_cursor_icon);
+				lv_indev_set_cursor(_mouse_indev, _mouse_cursor);
+			}
+
+			if (_config.use_keyboard) {
+				lv_indev_drv_init(&_keyboard_drv);
+				_keyboard_drv.type = LV_INDEV_TYPE_KEYPAD;
+				_keyboard_drv.read_cb = genode_keyboard_read;
+				_keyboard_drv.user_data = &_platform;
+
+				_keyboard_indev = lv_indev_drv_register(&_keyboard_drv);
+				lv_indev_set_group(_keyboard_indev, g);
+			}
+
+			_resume(_config);
+		}
+
 };
 
 
@@ -534,26 +545,6 @@ void Lvgl::init(Genode::Env &env, Lvgl::Config config)
 
 void Lvgl::tick(unsigned ms)
 {
-	Libc::with_libc([&] {
-		lv_tick_inc(ms);
-		lv_task_handler();
-	});
-}
-
-
-void Lvgl::resume()
-{
-	if (!_lvgl)
-		return;
-
-	_lvgl->resume();
-}
-
-
-void Lvgl::suspend()
-{
-	if (!_lvgl)
-		return;
-
-	_lvgl->suspend();
+	lv_tick_inc(ms);
+	lv_task_handler();
 }

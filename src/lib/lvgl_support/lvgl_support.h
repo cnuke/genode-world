@@ -19,6 +19,12 @@
 
 namespace Lvgl {
 
+	struct Callback
+	{
+		virtual void operator() () = 0;
+		virtual ~Callback() { }
+	};
+
 	struct Config
 	{
 		char const *title;
@@ -37,6 +43,9 @@ namespace Lvgl {
 		/* timely event handling */
 		bool use_periodic_timer;
 		unsigned periodic_ms;
+
+		Callback * resize_callback;
+		Callback * timer_callback;
 	};
 
 	/**
@@ -48,24 +57,6 @@ namespace Lvgl {
 	 * Called to advance LVGL's event loop
 	 */
 	void tick(unsigned);
-
-	/**
-	 * Resume processing of events
-	 */
-	void resume();
-
-	/**
-	 * Suspend processing of events
-	 */
-	void suspend();
-
-	/**
-	 * Main execution handler of the component
-	 *
-	 * This function will be called from within the LVGL event
-	 * handling.
-	 */
-	void handle_component();
 
 } /* namespace Lvgl */
 
