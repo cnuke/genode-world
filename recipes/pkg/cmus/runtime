@@ -5,7 +5,7 @@
 		<file_system label="home"/>
 		<file_system label="fonts"/>
 		<gui/>
-		<audio_out/>
+		<play/>
 		<timer/>
 		<rtc/>
 		<rm/>
