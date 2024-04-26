@@ -82,6 +82,23 @@ extern "C" {
 #include "SDL_sysevents.h"
 #include "SDL_genode_fb_events.h"
 
+	static bool skipkey(Input::Keycode const keycode)
+	{
+		using namespace Input;
+
+		/* just filter some keys that might wreck havoc */
+		switch (keycode) {
+		case KEY_CAPSLOCK:   return true;
+		case KEY_LEFTALT:    return true;
+		case KEY_LEFTCTRL:   return true;
+		case KEY_LEFTSHIFT:  return true;
+		case KEY_RIGHTALT:   return true;
+		case KEY_RIGHTCTRL:  return true;
+		case KEY_RIGHTSHIFT: return true;
+		default: return false;
+		}
+	}
+
 	/* "borrowed" from SDL_windowsevents.c */
 	static int ConvertUTF32toUTF8(unsigned int codepoint, char *text)
 	{
@@ -182,7 +199,7 @@ extern "C" {
 				else
 					SDL_SendKeyboardKey(SDL_PRESSED, getscancode(key));
 
-				if (SDL_EventState(SDL_TEXTINPUT, SDL_QUERY)) {
+				if (SDL_EventState(SDL_TEXTINPUT, SDL_QUERY) && !skipkey(key)) {
 					char text[SDL_TEXTINPUTEVENT_TEXT_SIZE];
 					SDL_zeroa(text);
 					if (ConvertUTF32toUTF8(codepoint.value, text)) {
