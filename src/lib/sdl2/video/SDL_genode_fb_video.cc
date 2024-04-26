@@ -31,6 +31,7 @@
 
 /* Genode includes */
 #include <base/attached_ram_dataspace.h>
+#include <base/attached_rom_dataspace.h>
 #include <base/env.h>
 #include <base/log.h>
 #include <gui_session/connection.h>
@@ -84,6 +85,8 @@ void Genode_GLES_DeleteContext(_THIS, SDL_GLContext context);
 		Gui::Connection          &_gui;
 		Gui::Session::View_handle _view { _gui.create_view() };
 
+		Genode::Attached_rom_dataspace _config_rom { _env, "config" };
+
 		void _handle_mode_change()
 		{
 			Genode::Mutex::Guard guard(event_mutex);
@@ -118,6 +121,21 @@ void Genode_GLES_DeleteContext(_THIS, SDL_GLContext context);
 			_gui.mode_sigh(Genode::Signal_context_capability());
 			dataspace(0, 0);
 			_gui.destroy_view(_view);
+		}
+
+		Gui::Area initial_mode_area()
+		{
+			_config_rom.update();
+			if (!_config_rom.valid())
+				return Gui::Area();
+
+			Gui::Area area { };
+
+			_config_rom.xml().with_optional_sub_node("initial",
+				[&] (Genode::Xml_node const &initial) {
+					area = Gui::Area::from_xml(initial); });
+
+			return area;
 		}
 
 		/************************************
@@ -321,6 +339,10 @@ void Genode_GLES_DeleteContext(_THIS, SDL_GLContext context);
 
 		/* Get the framebuffer size and mode infos */
 		drv.scr_mode = drv.framebuffer->mode();
+
+		Gui::Area const initial = drv.framebuffer->initial_mode_area();
+		if (initial.valid())
+			drv.scr_mode.area = initial;
 
 		/* set mode specific values */
 		device->displays = (SDL_VideoDisplay *)(SDL_calloc(1, sizeof(*device->displays)));
