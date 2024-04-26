@@ -1,4 +1,4 @@
-<runtime ram="64M" caps="200" binary="avplay">
+<runtime ram="128M" caps="400" binary="avplay">
 
 	<requires>
 		<file_system label="input"/>
