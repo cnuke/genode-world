@@ -6,4 +6,6 @@ SRC_C = info.c internal.c opusfile.c stream.c
 
 LIBS += libc libogg opus
 
+SHARED_LIB := yes
+
 vpath %.c $(OPUSFILE_SRC_DIR)
