@@ -1,4 +1,4 @@
-<runtime ram="7M" caps="600" binary="init">
+<runtime ram="10M" caps="600" binary="init">
 
 	<requires>
 		<file_system label="keyboard"/>
@@ -20,8 +20,7 @@
 		<default-route> <any-service> <parent/> </any-service> </default-route>
 		<default caps="100"/>
 
-		<start name="rom_to_file">
-			<resource name="RAM" quantum="1M"/>
+		<start name="rom_to_file" ram="2M">
 			<config rom="user.remap">
 				<vfs> <fs/> </vfs>
 			</config>
@@ -34,18 +33,16 @@
 			</route>
 		</start>
 
-		<start name="report">
+		<start name="report" ram="1M">
 			<binary name="report_rom"/>
-			<resource name="RAM" quantum="1M"/>
 			<provides> <service name="Report"/> <service name="ROM"/> </provides>
 			<config>
 				<policy label="rom_filter -> state" report="user_keys -> state" />
 			</config>
 		</start>
 
-		<start name="user_keys">
+		<start name="user_keys" ram="1M">
 			<binary name="global_keys_handler"/>
-			<resource name="RAM" quantum="1M"/>
 			<route>
 				<service name="ROM" label="config">
 					<child name="fs_rom" label="user_keys.config"/>
@@ -57,8 +54,7 @@
 			</route>
 		</start>
 
-		<start name="rom_filter">
-			<resource name="RAM" quantum="1M"/>
+		<start name="rom_filter" ram="1M">
 			<provides> <service name="ROM" /> </provides>
 			<route>
 				<service name="ROM" label="config">
@@ -71,8 +67,7 @@
 			</route>
 		</start>
 
-		<start name="fs_rom">
-			<resource name="RAM" quantum="1M"/>
+		<start name="fs_rom" ram="2M">
 			<provides> <service name="ROM"/> </provides>
 			<route>
 				<service name="File_system"> <parent identity="keyboard"/> </service>
