@@ -18,3 +18,5 @@ set version(genodelabs/src/sqlite) 3.50.4-2025-09-18
 set version(genodelabs/pkg/test-smartcard) 2025-10-10
 set version(genodelabs/raw/test-smartcard) 2025-10-10
 set version(genodelabs/src/test-smartcard) 2025-10-10
+
+set version(_/pkg/user_keys)      2025-10-23
