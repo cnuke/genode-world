@@ -20,3 +20,4 @@ set version(genodelabs/raw/test-smartcard) 2025-10-10
 set version(genodelabs/src/test-smartcard) 2025-10-10
 
 set version(_/pkg/user_keys)      2025-10-23
+set version(_/pkg/mobile_network) 2025-10-23
