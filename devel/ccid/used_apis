@@ -1,6 +1,5 @@
 genodelabs/api/libc
 genodelabs/api/libusb
 genodelabs/api/so
-genodelabs/api/pcsc-lite
 genodelabs/api/zlib
-
+_/api/pcsc-lite
