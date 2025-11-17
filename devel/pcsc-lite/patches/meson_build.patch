@@ -1,4 +1,13 @@
-+++ src/meson.build
++++ src/meson.build	2025-11-17 16:38:12.151041150 +0100
+@@ -9,7 +9,7 @@
+ # regenerate configuration (run from builddir/)
+ # meson setup --reconfigure --wipe
+ 
+-project('pcsc-lite', 'c',
++project('pcsc-lite', 'c', 'cpp',
+   meson_version : '>=0.58.0',
+   version : '2.3.3')
+ 
 @@ -36,9 +36,6 @@
  if compiler.has_function('getrandom', prefix : '#include <sys/random.h>')
    conf_data.set('HAVE_GETRANDOM', true)
@@ -18,7 +27,15 @@
    features += 'USB'
  endif
  
-@@ -95,7 +94,7 @@
+@@ -67,6 +66,7 @@
+ 
+ # global arguments
+ add_global_arguments('-fvisibility=hidden', language : 'c')
++add_global_arguments('-DGENODE', language : 'c')
+ 
+ # pcscd daemon
+ pcscd_src = [
+@@ -95,7 +95,7 @@
  incdir = include_directories(['src', 'src/PCSC'])
  
  # dependencies
@@ -27,7 +44,7 @@
  pcscd_dep = [threads_dep]
  if get_option('libudev')
    udev_dep = dependency('libudev')
-@@ -108,7 +107,7 @@
+@@ -108,7 +108,7 @@
    if get_option('libudev')
      error('You can\'t use both libudev and libusb')
    endif
@@ -36,37 +53,55 @@
    pcscd_dep += libusb_dep
    conf_data.set('HAVE_LIBUSB', true)
    features += 'libusb'
-@@ -163,12 +162,14 @@
+@@ -162,47 +162,36 @@
+   install_dir : sbindir,
    install : true)
  
- # libpcsclite_real library
-+# Extended because we use only one library
- libpcsclite_real_src = [
+-# libpcsclite_real library
+-libpcsclite_real_src = [
++libpcsclite_src_genode = [
++  'src/atrhandler.c',
++  'src/auth.c',
    'src/debug.c',
-   'src/winscard_clnt.c',
+-  'src/winscard_clnt.c',
++  'src/debuglog.c',
++  'src/dyn_unix.c',
++  'src/error.c',
++  'src/eventhandler.c',
++  'src/g_defines.c',
++  'src/hotplug_generic.c',
++  'src/ifdwrapper.c',
++  'src/prothandler.c',
++  'src/readerfactory.c',
    'src/simclist.c',
    'src/sys_unix.c',
    'src/utils.c',
-+  'src/g_defines.c',
-   'src/winscard_msg.c'
+-  'src/winscard_msg.c'
++  'src/winscard.c',
++  'src/winscard_clnt.c',
++  'src/winscard_msg.c',
++  'src/init.cc'
    ]
- shared_library('pcsclite_real',
-@@ -176,7 +177,6 @@
-   include_directories : incdir,
-   dependencies : threads_dep,
-   c_args: '-DLIBPCSCLITE -DSIMCLIST_NO_DUMPRESTORE',
+-shared_library('pcsclite_real',
+-  libpcsclite_real_src,
+-  include_directories : incdir,
+-  dependencies : threads_dep,
+-  c_args: '-DLIBPCSCLITE -DSIMCLIST_NO_DUMPRESTORE',
 -  soversion : 1,
-   install : true)
+-  install : true)
  
- # libpcsclite library
-@@ -186,23 +186,13 @@
-   'src/libredirect.c',
-   'src/sys_unix.c'
-   ]
-+# We re-define the pcsclite-Library to be the real one
- libpcsclite = shared_library('pcsclite',
+-# libpcsclite library
+-libpcsclite_src = [
+-  'src/error.c',
+-  'src/g_defines.c',
+-  'src/libredirect.c',
+-  'src/sys_unix.c'
+-  ]
+-libpcsclite = shared_library('pcsclite',
 -  libpcsclite_src,
-+  libpcsclite_real_src,
++# We re-define the pcsclite-Library to be the real one
++libpcsclite = shared_library('pcsc-lite',
++  libpcsclite_src_genode,
    dependencies : dl_deps,
    include_directories : incdir,
 -  soversion : 1,
@@ -84,10 +119,11 @@
 -  c_args: '-DLIBPCSCLITE -DSIMCLIST_NO_DUMPRESTORE',
 +  name_suffix : 'lib.so',
 +  name_prefix : '',
++  override_options: ['b_lundef=false'],
    install : true)
  
  # libpcsclite_fake library
-@@ -224,12 +214,6 @@
+@@ -224,12 +213,6 @@
  install_data('src/spy/setup_spy.sh',
    install_dir : 'share/doc/pcsc-lite')
  
@@ -100,7 +136,7 @@
  # testpcsc program
  executable('testpcsc',
    sources : 'src/testpcsc.c',
-@@ -241,11 +225,6 @@
+@@ -241,11 +224,6 @@
    include_directories : incdir,
    link_with : libpcsclite)
  
@@ -112,7 +148,7 @@
  # PC/SC headers
  install_headers(
    ['src/PCSC/debuglog.h',
-@@ -253,7 +232,7 @@
+@@ -253,7 +231,7 @@
     'src/PCSC/reader.h',
     'src/PCSC/winscard.h',
     'src/PCSC/wintypes.h'],
@@ -121,7 +157,7 @@
  
  # data
  if get_option('polkit')
-@@ -276,7 +255,7 @@
+@@ -276,7 +254,7 @@
  # generate from .in files
  configure_file(output : 'pcsclite.h',
    input : 'src/PCSC/pcsclite.h.in',
@@ -130,7 +166,7 @@
    configuration : confgen_data)
  configure_file(output : 'pcscd.h',
    input : 'src/pcscd.h.in',
-@@ -308,9 +287,9 @@
+@@ -308,9 +286,9 @@
  # pkg-config libpcsclite.pc
  pkg = import('pkgconfig')
  pkg.generate(

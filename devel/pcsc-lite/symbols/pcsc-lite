@@ -16,5 +16,6 @@ SCardReleaseContext T
 SCardSetAttrib T
 SCardStatus T
 SCardTransmit T
-g_rgSCardT0Pci T
-g_rgSCardT1Pci T
+g_rgSCardRawPci R 16
+g_rgSCardT0Pci R 16
+g_rgSCardT1Pci R 16

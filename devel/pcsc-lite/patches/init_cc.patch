@@ -1,6 +1,5 @@
---- /dev/null	2025-05-22 09:13:14.241260928 +0200
-+++ src/src/init.cc	2025-05-22 19:10:28.300275069 +0200
-@@ -0,0 +1,90 @@
++++ src/src/init.cc	2025-11-17 16:57:49.449529287 +0100
+@@ -0,0 +1,87 @@
 +/*
 + * \brief  pcsc-lite initialization
 + * \author Christian Prochaska
@@ -14,10 +13,6 @@
 + * under the terms of the GNU Affero General Public License version 3.
 + */
 +
-+/* Genode includes */
-+#include <base/log.h>
-+#include <util/xml_node.h>
-+
 +/* libc includes */
 +#include <fcntl.h>
 +#include <stdio.h>
@@ -30,6 +25,7 @@
 +/* pcsc-lite includes */
 +extern "C" {
 +#include <debuglog.h>
++#define _Atomic
 +#include <readerfactory.h>
 +}
 +
@@ -60,15 +56,15 @@
 +		libusb_device **devs = nullptr;
 +
 +		if (libusb_get_device_list(ctx, &devs) < 1) {
-+			Genode::error("Could not find a USB device.");
++			fprintf(stderr, "Error: could not find a USB device\n");
 +			exit(1);
 +		}
 +
 +		struct libusb_device_descriptor device_descriptor;
 +
 +		if (libusb_get_device_descriptor(devs[0], &device_descriptor) < 0) {
-+			Genode::error("Could not read the device descriptor of the "
-+			              "USB device.");
++			fprintf(stderr, "Error: could not read the device descriptor "
++			                "of the USB device\n");
 +			exit(1);
 +		}
 +

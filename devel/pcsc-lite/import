@@ -8,4 +8,4 @@ SHA(pcsc-lite) := cdff7d7153a0b37aa74e26dfec89ec7dc5c5286aa21b91b903e38739d227e8
 DIR(pcsc-lite) := src/
 TAR_OPT(pcsc-lite) := --strip-components=1 --exclude=pcsc-lite-$(VERSION)/configure.ac
 
-PATCHES := $(addprefix patches/, meson.build.patch)
+PATCHES := $(addprefix patches/, meson_build.patch init_cc.patch src.patch)
