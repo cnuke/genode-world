@@ -4,3 +4,4 @@ genodelabs/api/posix
 genodelabs/api/so
 genodelabs/api/zlib
 _/api/pcsc-lite
+_/api/ccid
