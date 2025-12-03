@@ -223,36 +223,39 @@ append_if $use_part_block config {
 		</route>
 	</start>}
 
+# [fio_config aio-iops-randread        randread  posixaio 64    4k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config aio-iops-randwrite       randwrite posixaio 64    4k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config aio-iops-read            read      posixaio 64    4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config aio-iops-write           write     posixaio 64    4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config aio-throughput-read      read      posixaio 64 1024k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config aio-throughput-write     write     posixaio 64 1024k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config aio-latency-read         read      posixaio 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config aio-latency-write        write     posixaio 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config aio-latency-randread     randread  posixaio 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config aio-latency-randwrite    randwrite posixaio 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config aio-latency-mixed-randrw randrw    posixaio 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config aio-iops-mixed-randrw    randrw    posixaio 64    4k 1 30 [fio_filename] $fiofile_size [use_singlecpu] 75 0] 
+
+# [fio_config sync-iops-randread        randread  sync 64    4k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config sync-iops-randwrite       randwrite sync 64    4k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config sync-iops-read            read      sync 64    4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config sync-iops-write           write     sync 64    4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config sync-throughput-read      read      sync 64 1024k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config sync-throughput-write     write     sync 64 1024k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config sync-latency-read         read      sync 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config sync-latency-write        write     sync 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config sync-latency-randread     randread  sync 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config sync-latency-randwrite    randwrite sync 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config sync-latency-mixed-randrw randrw    sync 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 0] 
+# [fio_config sync-iops-mixed-randrw    randrw    sync 64    4k 1 30 [fio_filename] $fiofile_size [use_singlecpu] 75 0] 
+
 append config {
 	<start name="sequence" caps="1000">
 		<resource name="RAM" quantum="1200M"/>
 		<affinity xpos="2" ypos="0" width="2" height="1"/>
 		<config>
-} [fio_config aio-iops-randread        randread  posixaio 64    4k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config aio-iops-randwrite       randwrite posixaio 64    4k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config aio-iops-read            read      posixaio 64    4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config aio-iops-write           write     posixaio 64    4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config aio-throughput-read      read      posixaio 64 1024k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config aio-throughput-write     write     posixaio 64 1024k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config aio-latency-read         read      posixaio 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config aio-latency-write        write     posixaio 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config aio-latency-randread     randread  posixaio 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config aio-latency-randwrite    randwrite posixaio 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config aio-latency-mixed-randrw randrw    posixaio 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config aio-iops-mixed-randrw    randrw    posixaio 64    4k 1 30 [fio_filename] $fiofile_size [use_singlecpu] 75] {
+} [fio_config aio-iops-randwrite       randwrite posixaio 64    4096 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0 1] {
 
-} [fio_config sync-iops-randread        randread  sync 64    4k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config sync-iops-randwrite       randwrite sync 64    4k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config sync-iops-read            read      sync 64    4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config sync-iops-write           write     sync 64    4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config sync-throughput-read      read      sync 64 1024k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config sync-throughput-write     write     sync 64 1024k 4 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config sync-latency-read         read      sync 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config sync-latency-write        write     sync 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config sync-latency-randread     randread  sync 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config sync-latency-randwrite    randwrite sync 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config sync-latency-mixed-randrw randrw    sync 1     4k 1 30 [fio_filename] $fiofile_size [use_singlecpu]  0] {
-} [fio_config sync-iops-mixed-randrw    randrw    sync 64    4k 1 30 [fio_filename] $fiofile_size [use_singlecpu] 75] {
 		</config>
 		<route>
 			<service name="Block"> <child name="part_block"/> </service>
