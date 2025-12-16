@@ -1,0 +1,15 @@
+genodelabs/src/dummy_rtc
+genodelabs/src/gmp
+genodelabs/src/init
+genodelabs/src/libc
+genodelabs/src/posix
+genodelabs/src/report_rom
+genodelabs/src/stdcxx
+genodelabs/src/system_rtc
+genodelabs/src/vfs
+genodelabs/src/vfs_jitterentropy
+genodelabs/src/vfs_lxip
+genodelabs/src/vfs_pipe
+_/src/chrony
+_/src/gnutls
+_/src/nettle

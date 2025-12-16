@@ -1,0 +1,114 @@
+<runtime ram="20M" caps="550" binary="init">
+
+	<provides> <rtc/> </provides>
+
+	<requires> <timer/> <nic/> </requires>
+
+	<config>
+		<parent-provides>
+			<service name="ROM"/>
+			<service name="IRQ"/>
+			<service name="IO_MEM"/>
+			<service name="IO_PORT"/>
+			<service name="PD"/>
+			<service name="RM"/>
+			<service name="CPU"/>
+			<service name="LOG"/>
+			<service name="Timer"/>
+			<service name="Nic"/>
+		</parent-provides>
+
+		<default caps="100" ram="1M"/>
+
+		<service name="Rtc"> <default-policy> <child name="system_rtc"/> </default-policy> </service>
+
+		<start name="report_rom">
+			<provides> <service name="Report"/> <service name="ROM"/> </provides>
+			<config verbose="yes">
+				<policy label="system_rtc -> set_rtc" report="chronyd -> set_rtc"/>
+			</config>
+			<route>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+		<start name="dummy_rtc">
+			<provides><service name="Rtc"/></provides>
+			<config allow_setting_rtc="false" year="2025" month="12" day="16" hour="12" minute="00" second="00"/>
+			<route>
+				<service name="ROM" label="set_rtc"> <child name="report_rom"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+		<start name="system_rtc">
+			<provides><service name="Rtc"/></provides>
+			<config allow_setting_rtc="true"/>
+			<route>
+				<service name="ROM" label="set_rtc"> <child name="report_rom"/> </service>
+				<service name="Rtc"> <child name="dummy_rtc"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+		<start name="chronyd" caps="170" ram="12M">
+			<config ld_verbose="yes" verbose="yes">
+				<arg value="chronyd"/>
+				<arg value="-4"/>
+				<arg value="-q"/>
+				<arg value="server ptbtime1.ptb.de iburst"/>
+				<libc stdout="/dev/null" stderr="/dev/log" rtc="/dev/rtc" socket="/socket" pipe="/pipe" rng="/dev/random"/>
+				<vfs>
+					<dir name="dev">
+						<log/>
+						<jitterentropy name="random"/>
+						<jitterentropy name="urandom"/>
+						<rtc/>
+						<null/>
+					</dir>
+					<dir name="socket"> <lxip dhcp="yes"/> </dir>
+					<dir name="pipe"> <pipe/> </dir>
+					<dir name="var">
+						<dir name="run">
+							<dir name="chrony">
+								<inline name="chronyd.pid"></inline>
+								<inline name="chronyd.sock"></inline>
+								<inline name="drift"></inline>
+							</dir>
+						</dir>
+					</dir>
+				</vfs>
+			</config>
+			<route>
+				<service name="Nic">   <parent/>                  </service>
+				<service name="Timer"> <parent/>                  </service>
+				<service name="Rtc">   <child name="system_rtc"/> </service>
+				<any-service> <parent/> <any-child/> </any-service>
+			</route>
+		</start>
+	</config>
+
+	<content>
+		<!-- Components -->
+		<rom label="chronyd"/>
+		<rom label="dummy_rtc"/>
+		<rom label="init"/>
+		<rom label="report_rom"/>
+		<rom label="system_rtc"/>
+
+		<!-- Libraries -->
+		<rom label="gmp.lib.so"/>
+		<rom label="gnutls.lib.so"/>
+		<rom label="ld.lib.so"/>
+		<rom label="libc.lib.so"/>
+		<rom label="libm.lib.so"/>
+		<rom label="lxip.lib.so"/>
+		<rom label="nettle.lib.so"/>
+		<rom label="posix.lib.so"/>
+		<rom label="stdcxx.lib.so"/>
+		<rom label="vfs.lib.so"/>
+		<rom label="vfs_jitterentropy.lib.so"/>
+		<rom label="vfs_lxip.lib.so"/>
+		<rom label="vfs_pipe.lib.so"/>
+	</content>
+</runtime>
