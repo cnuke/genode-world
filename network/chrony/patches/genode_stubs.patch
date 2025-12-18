@@ -64,7 +64,7 @@
 +}
 \ No newline at end of file
 +++ src/chronyd/set_time_helper.cc
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,83 @@
 +/*
 + * \brief  helper implementation for set time
 + * \author Roland Bär
@@ -81,7 +81,6 @@
 +
 +set_time_helper::set_time_helper()
 +{
-+	Genode::log("set_time_helper::ctor");
 +}
 +
 +
@@ -150,7 +149,7 @@
 +
 +set_time_helper _set_time_helper;
 +++ src/chronyd/set_time_helper.h
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,63 @@
 +/*
 + * \brief  helper for setting the time
 + * \author Roland Bär
@@ -174,7 +173,6 @@
 +
 +	void _set_rtc(Genode::Expanding_reporter &reporter, Rtc::Timestamp const &ts)
 +	{
-+		Genode::log("_set_rtc");
 +		reporter.generate([&] (Genode::Generator &g) {
 +			g.attribute("year",   ts.year);
 +			g.attribute("month",  ts.month);
