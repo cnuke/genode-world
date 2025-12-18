@@ -1,6 +1,5 @@
---- src/chronyd/sys_generic.c.orig	2025-03-12 15:07:49.534708120 +0100
-+++ src/chronyd/sys_generic.c	2025-03-12 15:08:12.944528241 +0100
-@@ -80,9 +80,6 @@ static struct timespec slew_start;
++++ src/chronyd/sys_generic.c	2025-12-18 16:23:36.950685925 +0100
+@@ -80,9 +80,6 @@
  /* Scheduler timeout ID for ending of the currently running slew */
  static SCH_TimeoutID slew_timeout_id;
  
@@ -10,7 +9,7 @@
  /* Expected delay in ending of the slew due to process scheduling and
     execution time, tracked as a decaying maximum value */
  static double slew_excess_duration;
-@@ -95,6 +92,9 @@ static double slew_excess_duration;
+@@ -95,6 +92,9 @@
  #define MIN_SLEW_DURATION_EXCESS_RATIO 5.0
  #define SLEW_EXCESS_DURATION_DECAY 0.9
  
@@ -20,7 +19,7 @@
  /* Suggested offset correction rate (correction time * offset) */
  static double correction_rate;
  
-@@ -124,7 +124,12 @@ static void
+@@ -124,7 +124,12 @@
  handle_step(struct timespec *raw, struct timespec *cooked, double dfreq,
              double doffset, LCL_ChangeType change_type, void *anything)
  {
@@ -34,7 +33,7 @@
      UTI_AddDoubleToTimespec(&slew_start, -doffset, &slew_start);
    }
  }
-@@ -179,8 +184,8 @@ clamp_freq(double freq)
+@@ -179,8 +184,8 @@
  static void
  update_slew(void)
  {
@@ -44,7 +43,7 @@
  
    /* Remove currently running timeout */
    SCH_RemoveTimeout(slew_timeout_id);
-@@ -193,39 +198,29 @@ update_slew(void)
+@@ -193,39 +198,29 @@
  
    stop_fastslew(&now);
  
@@ -93,7 +92,7 @@
      start_fastslew();
      corr_freq = 0.0;
    }
-@@ -245,8 +240,9 @@ update_slew(void)
+@@ -245,8 +240,9 @@
    /* Compute the dispersion introduced by changing frequency and add it
       to all statistics held at higher levels in the system */
    slew_error = fabs((old_slew_freq - slew_freq) * max_freq_change_delay);
@@ -104,7 +103,7 @@
  
    /* Compute the duration of the slew and clamp it.  If the slewing frequency
       is zero or has wrong sign (e.g. due to rounding in the frequency driver or
-@@ -254,25 +250,25 @@ update_slew(void)
+@@ -254,25 +250,25 @@
       maximum timeout and try again on the next update. */
    if (fabs(offset_register) < MIN_OFFSET_CORRECTION ||
        offset_register * slew_freq <= 0.0) {
@@ -139,7 +138,7 @@
  }
  
  /* ================================================== */
-@@ -305,13 +301,28 @@ set_frequency(double freq_ppm)
+@@ -305,13 +301,28 @@
  
  /* ================================================== */
  
@@ -171,7 +170,7 @@
  }
  
  /* ================================================== */
-@@ -430,20 +441,6 @@ SYS_Generic_CompleteFreqDriver(double ma
+@@ -430,19 +441,6 @@
  void
  SYS_Generic_Finalise(void)
  {
@@ -188,7 +187,6 @@
 -  LCL_ReadRawTime(&now);
 -  stop_fastslew(&now);
 -
--  LCL_RemoveParameterChangeHandler(handle_step, NULL);
+   LCL_RemoveParameterChangeHandler(handle_step, NULL);
  }
  
- /* ================================================== */

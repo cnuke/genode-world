@@ -1,12 +1,13 @@
 --- /dev/null	2025-03-13 08:55:48.917261329 +0100
 +++ src/chronyd/genode_stubs.c	2025-03-13 14:44:00.640153179 +0100
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,93 @@
 +/*
 + * \brief  OS specific implementations used by chrony
 + * \author Roland Bär
 + * \date   2022-06-06
 + */
 +
++#include <unistd.h>
 +#include "config.h"
 +#include "sysincl.h"
 +#include "sys_timex.h"
@@ -90,5 +91,6 @@
 +{
 +  time_t time = tv->tv_sec;
 +  settime(time);
++  sleep(1); // defer potential follow-up clock_gettime call
 +  return 0;
 +}
