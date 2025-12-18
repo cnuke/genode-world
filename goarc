@@ -16,7 +16,7 @@ set version(_/src/rsyslog)        8.2502.0-2025-10-09
 set version(_/api/sqlite)         3.50.4-2025-09-18
 set version(_/src/sqlite)         3.50.4-2025-09-18
 
-set version(_/pkg/chrony_system_rtc) 2025-12-18
+set version(_/pkg/chrony_system_rtc) 2025-12-18-ZzZ
 
 set version(_/pkg/test-smartcard) 2025-11-17
 set version(_/raw/test-smartcard) 2025-10-10
@@ -26,3 +26,6 @@ set version(_/pkg/user_keys)      2025-10-23
 set version(_/pkg/mobile_network) 2025-10-23
 
 set version(_/src/seoul)          2025-12-11
+
+set version(_/src/gmp)            2025-11-20
+set version(_/src/system_rtc)     2025-12-18-b

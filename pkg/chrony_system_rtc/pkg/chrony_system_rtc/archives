@@ -1,4 +1,3 @@
-genodelabs/src/gmp
 genodelabs/src/init
 genodelabs/src/libc
 genodelabs/src/posix
@@ -9,6 +8,7 @@ genodelabs/src/vfs_jitterentropy
 genodelabs/src/vfs_lxip
 genodelabs/src/vfs_pipe
 _/src/chrony
+_/src/gmp
 _/src/gnutls
 _/src/nettle
 _/src/system_rtc
