@@ -3,7 +3,7 @@ genodelabs/src/libc
 genodelabs/src/posix
 genodelabs/src/report_rom
 genodelabs/src/stdcxx
-genodelabs/src/vfs
+_/src/vfs
 genodelabs/src/vfs_jitterentropy
 genodelabs/src/vfs_lxip
 genodelabs/src/vfs_pipe
